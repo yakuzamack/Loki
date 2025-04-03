@@ -125,13 +125,13 @@ I do not recommend compiling the agent and using it for operations. Agent compil
 - [macOS](./docs/compile/agent/macos.md)
 
 ## Detection Guidance
-- Review the information provided by MITRE for more details, examples, and information about Electron backdooring TTP : [MITRE ATT&CK 
-T1218.015: Electron Applications](https://attack.mitre.org/techniques/T1218/015/)
+- Review the information provided by MITRE for more details, examples, and information about this TTP :
+  -  [MITRE ATT&CK T1218.015: Electron Applications](https://attack.mitre.org/techniques/T1218/015/)
 - Execution of an electron app from a abnormal directory such as `~/Downloads/Teams/Teams.exe`
 - Electron apps beaconing to an Azure Storage Blob `*.blob.core.windows.net`
 - SAS token usage in network traffic
 - Electron apps spawning child processes such as `netstat.exe` or `whoami.exe`
-- A directory with the name in the Loki `packages.json` will be created in `~/AppData/Roaming/{NAME}` will be created when the Loki JavaScript executes in the Electron process.
+- A directory with the name in the Loki `packages.json` will be created in `~/AppData/Roaming/{NAME}` when the Loki JavaScript executes in the Electron process.
 - This [LOLBAS Teams](https://lolbas-project.github.io/lolbas/OtherMSBinaries/Teams/) entry covers detections for Electron application backdooring. The detection information has been copied below.  
 - IOC: `%LOCALAPPDATA%\Microsoft\Teams\current\app` directory created
 - IOC: `%LOCALAPPDATA%\Microsoft\Teams\current\app.asar` file created/modified by non-Teams installer/updater
