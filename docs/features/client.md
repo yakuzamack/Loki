@@ -1,0 +1,24 @@
+# Client Features
+- Logging
+  - All commands executed on an agent are saved locally to `/log/`.
+  - Click `Agent Logs` from the top drop down menu to open the `/log/` directory in your file explorer. 
+- Downloads
+  - All files downloaded from an agent are saved locally to `/downloads/`.
+  - Click `Downloads` from the top drop down menu to open the `/downloads/` directory in your file explorer. 
+- Configuration Modification via GUI
+  - After getting your Azure Storage Account setup you need to modify `config.js` in both the client & agent.
+  - To do this from the GUI click `Configuration` from the top drop down menu, then enter in your storage account name and SAS token.
+- Tab Completion
+  - When in the agent terminal window, there is tab completion for the available commands.
+- Agent Help Menu
+  - Enter `help` in an agent terminal to list all the commands with descriptions.
+  - Enter `help [command]` for more details and examples for the specific command.
+- Remove Agent from Dashboard
+  - Right-clicking an agent row in the dashboard will show a `remove` option.
+  - Clicking this will:
+    - Delete the agent row from the dashboard table.
+    - Delete the tracking blob for the agents container in the metadata container.
+    - Delete the agents container.
+  - To kill C2 comms you need to use `exit-all` first in the agent terminal.
+    - If you don't do this the agent will remake the containers and will pop back up in the dashboard.
+    - If you don't do this the agent will remake the containers and will pop back up in the dashboard.

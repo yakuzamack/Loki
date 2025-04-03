@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #1e1e1e; /* Dark background for contrast */
+            color: #fff;
+        }
+        .container {
+            width: 80%;
+            max-width: 600px;
+            background: rgba(30, 30, 30, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #555;
+            border-radius: 5px;
+            background: #2e2e2e;
+            color: #fff;
+        }
+        .button-group {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        button {
+            width: 48%;
+            padding: 12px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        .save-btn {
+            background: #007bff;
+            color: white;
+        }
+        .save-btn:hover {
+            background: #0056b3;
+        }
+        .cancel-btn {
+            background: #dc3545;
+            color: white;
+        }
+        .cancel-btn:hover {
+            background: #a71d2a;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Configuration</h1>
+        <form id="configForm">
+            <label>Storage Account:</label>
+            <input type="text" id="storageAccount">
+            
+            <label>Meta Container:</label>
+            <input type="text" id="metaContainer">
+            
+            <label>SAS Token:</label>
+            <input type="text" id="sasToken">
+            
+            <div class="button-group">
+                <button type="submit" class="save-btn">Save</button>
+                <button type="button" class="cancel-btn" id="cancelButton">Cancel</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+
+        // Load the current config
+        //const config = require('./config');
+        const { getAppDataDir } = require('./common');
+        const directories = getAppDataDir();
+        let config = require(directories.configFilePath);
+        document.getElementById('storageAccount').value = config.storageAccount;
+        document.getElementById('metaContainer').value = config.metaContainer;
+        document.getElementById('sasToken').value = config.sasToken;
+
+        // Handle form submission
+        document.getElementById('configForm').addEventListener('submit', (event) => {
+            event.preventDefault();
+            const updatedConfig = {
+                storageAccount: document.getElementById('storageAccount').value,
+                metaContainer: document.getElementById('metaContainer').value,
+                sasToken: document.getElementById('sasToken').value
+            };
+
+            ipcRenderer.send('update-config', updatedConfig);
+            alert('Configuration Updated');
+            window.close();
+        });
+
+        // Handle cancel button
+        document.getElementById('cancelButton').addEventListener('click', () => {
+            window.close();
+        });
+
+        // Enable macOS shortcuts (`Cmd+C`, `Cmd+V`) and Windows/Linux (`Ctrl+C`, `Ctrl+V`)
+        document.addEventListener('keydown', function (event) {
+            if ((event.ctrlKey || event.metaKey) && event.key === 'c') {
+                ipcRenderer.send('copy');
+                event.preventDefault();
+            }
+            if ((event.ctrlKey || event.metaKey) && event.key === 'v') {
+                ipcRenderer.send('paste');
+                event.preventDefault();
+            }
+            if ((event.ctrlKey || event.metaKey) && event.key === 'x') {
+                ipcRenderer.send('cut');
+                event.preventDefault();
+            }
+        });
+
+        // Right-click Context Menu
+        window.addEventListener('contextmenu', function (event) {
+            event.preventDefault();
+            ipcRenderer.send('show-context-menu');
+        });
+    </script>
+</body>
+</html>

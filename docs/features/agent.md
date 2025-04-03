@@ -1,0 +1,25 @@
+# Agent Features
+- Proxy-Aware 
+  - Leverages Chromiums proxy-aware capabilities to ride the systems configured proxy.
+- Each agent uses a dynamically genereted AES key (no static keys!).
+- C2 channel messages are AES and Base64 encoded.
+- Upload & download files are encrypted to their own Blobs.
+- `kernel.js` lives in the main Electron Chromium process.
+- Agents are spawned in child process Renderer windows.
+- If an agent dies do to an exception in the agent code, the Kernel will spawn a new child Renderer process that uses the same agent ID.
+- Inter Process Communications (IPC) is used to send messages between the Kernel and Agent processes.
+- Shellcode Execution _(Windows Agents Only)_
+  - Node module created by [Dylan Tran](https://x.com/d_tranman) 
+  - The Kernel creates a Renderer process which will have its main thread control transferred to the sacraficial Renderer child process.
+  - Shellcode is AES encrypted, uploaded to a blob, downloaded by the agent, sent to a new process where it is decrypted and executed.
+  - Loads in a Node module into the sacraftical process
+    - This requires a DLL load event of an unsigned DLL `scexec.node`. 
+  - If this is prevented by app control, the agent will still call back. Since the Agent and Kernel live in different processes.
+- Assembly Execution / Fork-N-Run _(Windows Agents Only)_
+  - Node module created by [Dylan Tran](https://x.com/d_tranman) 
+    - Based on [InlineExecute-Assembly](https://github.com/anthemtotheego/InlineExecute-Assembly) by [Shawn Jones](https://x.com/anthemtotheego)
+  - Assembly is AES encrypted, uploaded to a blob, downloaded by the agent, sent to a new process where it is decrypted and executed.
+  - Command output is sent via IPC from the assembly process --> Kernel --> Agent --> Client.
+  - After assembly execution the sacraficial child process dies (fork-and-run)
+  - Loads in `assembly.node` module into a sacraficial Renderer child process
+    - This requires a DLL load event of an unsigned DLL `assembly.node`

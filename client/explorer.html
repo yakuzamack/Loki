@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Explorer</title>
+    <link rel="stylesheet" href="explorer.css">
+</head>
+<body>
+    <!-- <h2>Loki Green File Explorer</h2> -->
+    <div class="nav-container">
+        <button class="back-button" onclick="goBack()">⬅ Parent Dir</button>
+        <input type="text" id="dirPath" />
+        <button onclick="listFiles()">Browse</button>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th onclick="sortTable(0)">Name 🔽</th>
+                <th onclick="sortTable(1)">Size (bytes) 🔽</th>
+                <th onclick="sortTable(2)">Type 🔽</th>
+                <th onclick="sortTable(3)">Last Modified 🔽</th>
+            </tr>
+        </thead>
+        <tbody id="fileList"></tbody>
+    </table>
+
+    <script src="explorer.js"></script>
+</body>
+</html>
