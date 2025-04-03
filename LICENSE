@@ -1,0 +1,40 @@
+Business Source License 1.1
+
+Parameters
+
+Licensor: Robert Cooke  
+Licensed Work: This software repository and all files contained within it.  
+Additional Use Grant: None.  
+Change Date: April 3, 2030 
+Change License: Apache License, Version 2.0
+
+Terms
+
+The Business Source License (this “License”) is an agreement between Licensor and You, the individual or entity using the Licensed Work (defined below). Your use of the Licensed Work constitutes acceptance of this License.
+
+1. **Licensed Work**. The “Licensed Work” is the software made available under this License, including the source code, documentation, and any accompanying material.
+
+2. **License Grant**.  
+   a. You may use, copy, modify, and distribute the Licensed Work, but only for non-commercial purposes, subject to the limitations below.  
+   b. “Non-commercial purposes” means any use that is not primarily intended for or directed towards commercial advantage or monetary compensation.  
+   c. You may not use the Licensed Work to provide a hosted or commercial service, whether internal or external, without written permission from the Licensor.
+
+3. **Distribution Restrictions**.  
+   a. You may not distribute or sublicense the Licensed Work for commercial use.  
+   b. You may create and share modifications, but they must also be licensed under this same License.
+
+4. **Change Date and License Conversion**.  
+   On the Change Date specified above, this License will automatically terminate, and the Licensed Work will become available under the Change License, as defined above. All restrictions in this License will no longer apply after that date.
+
+5. **Disclaimer**.  
+   THE LICENSED WORK IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE LICENSED WORK OR THE USE OR OTHER DEALINGS IN THE LICENSED WORK.
+
+6. **Limitation of Liability for Unauthorized or Malicious Use**.  
+   The Licensor shall not be held responsible or liable in any capacity for any harm, loss, or damage—whether direct, indirect, incidental, or consequential—that arises from any **unauthorized or malicious use** of the Licensed Work by any third party, including entities using the software in violation of this License. All responsibility for such misuse lies solely with the unauthorized actor.
+
+7. **Termination**.  
+   Your rights under this License will terminate automatically if you breach any of its terms.
+
+---
+
+This License is based on the Business Source License version 1.1 provided by MariaDB Corporation Ab, available at: https://mariadb.com/bsl11
