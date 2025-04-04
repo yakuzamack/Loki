@@ -29,7 +29,7 @@ For more information see my blog post about backdooring Electron applications wi
 - Teamserver-less, unlike traditional C2's where agents send messages to a Teamserver, there is no Teamserver.
   - The GUI Client & Agents both check the same online data-store for new commands and output. 
 - Uses Azure Storage Blobs for C2 channel.
-  - All C2 messages are AES encrypted uaing a dynamically creatd AES key.
+  - All C2 messages are AES encrypted uaing a dynamically created AES key.
   - Uses SAS Token to protect C2 storage account.
 - Proxy-aware agent.
   - Uses Chromium renderer child processes for agent, shellcode execution, and assembly fork-n-run style execution, so inherits proxy-aware capabilities of Chromium.
