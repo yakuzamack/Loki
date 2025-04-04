@@ -183,7 +183,7 @@ I do not recommend compiling the agent and using it for operations. Agent compil
 - IOC: `%LOCALAPPDATA%\Microsoft\Teams\current\app` directory created
 - IOC: `%LOCALAPPDATA%\Microsoft\Teams\current\app.asar` file created/modified by non-Teams installer/updater
 
-# References & Acknowledgements
+# References || Acknowledgements || Offensive Electron Research 
 - [Dylan Tran (@d_tranman)](https://x.com/d_tranman)
   - Cocreator of the Loki agent. Created node modules for shellcode and assembly execution.  
 - [Valentina Palmiotti (@chompie1337)](https://x.com/chompie1337), [Ellis Springe (@knavesec)](https://x.com/knavesec), and [Ruben Boonen](https://x.com/FuzzySec) for their previous internel work on backdooring Electron applications for persistence
@@ -197,6 +197,11 @@ I do not recommend compiling the agent and using it for operations. Agent compil
   - [Quasar: Compromising Electron Apps](https://taggart-tech.com/quasar-electron/)
 - [Raphael Mudge](https://bsky.app/profile/raphaelmudge.bsky.social) for inspiring me to dive deep into red teaming and supporting the release of this tool
   - [The Security Conversation](https://aff-wg.org/)
+- [Fletcher Davis](https://x.com/gymR4T)
+  - [BSides : Abusing Electron Applications](https://github.com/gymR4T/presentations/blob/main/BSidesNOVA2022_ElectronApplicationAbuse.pdf)
+- [Pavel Tsakalidis](https://x.com/sadreck)
+  - [BEEMKA - Electron Exploitation Toolkit](https://github.com/ctxis/beemka)
+
 
 ## License
 This project is licensed under the Business Source License 1.1. Non-commercial use is permitted under the terms of the license. Commercial use requires the author's explicit permission. On April 3, 2030, this license will convert to Apache 2.0. See [LICENSE](./LICENSE) for full details.
