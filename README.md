@@ -39,7 +39,7 @@ For more information see my blog post about backdooring Electron applications wi
 ### Commands
 _All agent commands are written in native Node.JS and do not require additional dependecies or library load events. With the exception of the `scexec` and `assembly` commands which do a library load on `keytar.node` and `assembly.node`_
 
-| Command   --| Description                                                                |
+| Command     | Description                                                                |
 |-------------|----------------------------------------------------------------------------|
 | `help`      | Display help. Usage: `help` || `help scan`                                 |
 | `pwd`       | Print working directory                                                    |
@@ -58,7 +58,7 @@ _All agent commands are written in native Node.JS and do not require additional 
 | `upload`    | Upload a file from your local operator box to the remote agent box         |
 | `download`  | Download a file from remote agent box to local operator box                |
 | `scan`      | Scan. Usage: `scan [-p]`                                                   |
-| `dns`       | DNS lookup. Usage: `dns [-all | -mx | -txt | -cname]`                      |
+| `dns`       | DNS lookup. Usage: dns [-all | -mx | -txt | -cname]                        |
 | `set`       | Set the Node load paths for assembly node and scexec nodes                 |  
 
 #### `Set` - Loading Nodes from Application Control Exclusion Paths
