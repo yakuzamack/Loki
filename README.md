@@ -154,8 +154,8 @@ I do not recommend compiling the agent and using it for operations. Agent compil
 - Michael Taggart
   - [quASAR project, a tool designed for modifying Electron applications to enable command execution](https://github.com/mttaggart/quasar)
   - [Quasar: Compromising Electron Apps](https://taggart-tech.com/quasar-electron/)
-  - [Raphael Mudge](https://bsky.app/profile/raphaelmudge.bsky.social) for inspiring me to dive deep into red teaming and supporting the release of this tool
-    - [The Security Conversation](https://aff-wg.org/)
+- [Raphael Mudge](https://bsky.app/profile/raphaelmudge.bsky.social) for inspiring me to dive deep into red teaming and supporting the release of this tool
+  - [The Security Conversation](https://aff-wg.org/)
 
 ## License
 This project is licensed under the Business Source License 1.1. Non-commercial use is permitted under the terms of the license. Commercial use requires the author's explicit permission. On April 3, 2030, this license will convert to Apache 2.0. See [LICENSE](./LICENSE) for full details.
