@@ -31,11 +31,11 @@ For more information see my blog post about backdooring Electron applications wi
 - Uses Azure Storage Blobs for C2 channel.
   - All C2 messages are AES encrypted uaing a dynamically creatd AES key.
   - Uses SAS Token to protect C2 storage account.
-  - Proxy-aware agent.
-    - Uses Chromium renderer child processes for agent, shellcode execution, and assembly fork-n-run style execution, so inherits proxy-aware capabilities of Chromium.
-  - Hidden window and does not show in taskbar after execution, Loki process is ran in background.
+- Proxy-aware agent.
+  - Uses Chromium renderer child processes for agent, shellcode execution, and assembly fork-n-run style execution, so inherits proxy-aware capabilities of Chromium.
+- Hidden window and does not show in taskbar after execution, Loki process is ran in background.
   - Can stay alive for months calling back until the computer is restarted.
-  - Robust exception handling in kernel process, if agent child process dies from an exception or bug then kernel spawns a new agent process. 
+- Robust exception handling in kernel process, if agent child process dies from an exception or bug then kernel spawns a new agent process. 
 
 ### Agent Features
 [For more information on Agent features click here](docs/features/agent.md)
