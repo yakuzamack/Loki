@@ -8,7 +8,7 @@ Stage 1 C2 for backdooring Electron applications to bypass application controls.
 | Name                | Contributions                 |
 |---------------------|-------------------------------|
 | [Bobby Cooke](https://x.com/0xBoku)    | Creator & Maintainer |
-| [Dylan Tran](https://x.com/d_tranman)  | Co-Creator |
+| [Dylan Tran](https://x.com/d_tranman)  | Creator |
 | [Ellis Springe](https://x.com/knavesec)| Alpha Tester |
 
 ## 🪄 Description
