@@ -25,7 +25,6 @@ For more information see my blog post about backdooring Electron applications wi
 - [Bypassing Windows Defender Application Control with Loki C2](https://www.ibm.com/think/x-force/bypassing-windows-defender-application-control-loki-c2)
 
 ## Features & Details
-### Details
 - Teamserver-less, unlike traditional C2's where agents send messages to a Teamserver, there is no Teamserver.
   - The GUI Client & Agents both check the same online data-store for new commands and output. 
 - Uses Azure Storage Blobs for C2 channel.
@@ -36,6 +35,46 @@ For more information see my blog post about backdooring Electron applications wi
 - Hidden window and does not show in taskbar after execution, Loki process is ran in background.
   - Can stay alive for months calling back until the computer is restarted.
 - Robust exception handling in kernel process, if agent child process dies from an exception or bug then kernel spawns a new agent process. 
+
+### Commands
+_All agent commands are written in native Node.JS and do not require additional dependecies or library load events. With the exception of the `scexec` and `assembly` commands which do a library load on `keytar.node` and `assembly.node`_
+
+| Command   | Description                                                                 |
+|-----------|-----------------------------------------------------------------------------|
+| help      | Display help.                                                               |
+| pwd       | Print working directory.                                                    |
+| ls        | File and directory listing.                                                 |
+| cat       | Display contents of a file.                                                 |
+| env       | Display process environment variables.                                      |
+| spawn     | Spawn a child process.                                                      |
+| drives    | List drives.                                                                |
+| mv        | Move a file to a new destination.                                           |
+| sleep     | Sleep for seconds with jitter.                                              |
+| cp        | Copy a file.                                                                |
+| exit-all  | Exits the agent. The agent won't callback anymore.                          |
+| load      | Load a node PE file from disk into the process.                             |
+| scexec    | Execute shellcode.                                                          |
+| assembly  | Execute a .NET assembly and get command output.                             |
+| upload    | Upload a file from your local operator box to the remote agent box.         |
+| download  | Download a file from remote agent box to local operator box.                |
+| scan      | Scan. Usage: `scan [-p]`.                                                   |
+| dns       | DNS lookup. Usage: `dns [-all | -mx | -txt | -cname]`.                      |
+| set       | Set the Node load paths for assembly node and scexec nodes.                 |  
+
+#### `Set` - Loading Nodes from Application Control Exclusion Paths
+- If there are application control rules preventing library loads for the node files you can use the `set` command to change the load paths for `assembly.node` and `scexec.node`. 
+- By using `ls`, `cat`, `cp` and `mv` you may be able to enumerate the application control rules to discover a writable directory that is an exclusion. 
+- With this you can put the node files in the exclusion directory and use the `set` command to change their load path to the exclusion directory to bypass the application control. 
+- For more details on this attack vector see the [CRTO2](https://training.zeropointsecurity.co.uk/courses/red-team-ops-ii) course by [Daniel Duggan (@_RastaMouse)](https://x.com/_RastaMouse) 
+
+```
+[04-04-2025 8:50AM MST] advsim$ help set
+Set the Node load paths for assembly node and scexec nodes
+	set scexec_path C:/Users/user/AppData/ExcludedApp/scexec.node
+	set assembly_path C:/Users/user/AppData/ExcludedApp/assembly.node
+[04-04-2025 8:51AM MST] advsim$ set scexec_path C:/Users/user/AppData/ExcludedApp/scexec.node
+SCEXEC Node Load Path Set to : C:/Users/user/AppData/ExcludedApp/scexec.node
+```
 
 ### Agent Features
 [For more information on Agent features click here](docs/features/agent.md)

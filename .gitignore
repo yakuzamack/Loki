@@ -1,3 +1,4 @@
+./config.js
 node_modules/
 client/node_modules/
 agent/node_modules/
@@ -5,9 +6,7 @@ client/dist/
 client/log/
 client/downloads/
 agent/dist/
-agent/config.js
-client/config.js
 .DS_Store
-package-lock.json
-package.json
-agentOut/
+./package-lock.json
+./package.json
+app/
