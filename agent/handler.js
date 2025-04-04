@@ -114,7 +114,7 @@ async function func_File_Copy(srcPath, destPath) {
     // Ensure the destination directory exists
     await fsp.mkdir(path.dirname(destPath), { recursive: true });
     // Copy the file
-    await fsp.func_File_Copy(srcPath, destPath);
+    await fsp.copyFile(srcPath, destPath);
     output = `File copied from ${srcPath} to ${destPath}`;
     //log( output );
   } catch (error) {
