@@ -150,7 +150,7 @@ I do not recommend compiling the agent and using it for operations. Agent compil
   - [ Wild West Hackin’ Fest talk Statikk Shiv: Leveraging Electron Applications for Post-Exploitation](https://www.youtube.com/watch?v=VXb6lwXhCAc)
 - Andrew Kisliakov
   - [Microsoft Teams and other Electron Apps as LOLbins](https://l--k.uk/2022/01/16/microsoft-teams-and-other-electron-apps-as-lolbins/) 
-- [mr.d0x (@mrd0x)](https://twitter.com/@mrd0x)
+- [mr.d0x (@mrd0x)](https://twitter.com/@mrd0x) for their prior work about leveraging the Teams Electron application to execute arbitrary Node.JS code and publishing their findings to the LOLBAS project.
 - Michael Taggart
   - [quASAR project, a tool designed for modifying Electron applications to enable command execution](https://github.com/mttaggart/quasar)
   - [Quasar: Compromising Electron Apps](https://taggart-tech.com/quasar-electron/)
