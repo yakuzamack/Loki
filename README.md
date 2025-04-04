@@ -39,27 +39,27 @@ For more information see my blog post about backdooring Electron applications wi
 ### Commands
 _All agent commands are written in native Node.JS and do not require additional dependecies or library load events. With the exception of the `scexec` and `assembly` commands which do a library load on `keytar.node` and `assembly.node`_
 
-| Command   | Description                                                                 |
-|-----------|-----------------------------------------------------------------------------|
-| help      | Display help.                                                               |
-| pwd       | Print working directory.                                                    |
-| ls        | File and directory listing.                                                 |
-| cat       | Display contents of a file.                                                 |
-| env       | Display process environment variables.                                      |
-| spawn     | Spawn a child process.                                                      |
-| drives    | List drives.                                                                |
-| mv        | Move a file to a new destination.                                           |
-| sleep     | Sleep for seconds with jitter.                                              |
-| cp        | Copy a file.                                                                |
-| exit-all  | Exits the agent. The agent won't callback anymore.                          |
-| load      | Load a node PE file from disk into the process.                             |
-| scexec    | Execute shellcode.                                                          |
-| assembly  | Execute a .NET assembly and get command output.                             |
-| upload    | Upload a file from your local operator box to the remote agent box.         |
-| download  | Download a file from remote agent box to local operator box.                |
-| scan      | Scan. Usage: `scan [-p]`.                                                   |
-| dns       | DNS lookup. Usage: `dns [-all | -mx | -txt | -cname]`.                      |
-| set       | Set the Node load paths for assembly node and scexec nodes.                 |  
+| Command   --| Description                                                                |
+|-------------|----------------------------------------------------------------------------|
+| `help`      | Display help. Usage: `help` || `help scan`                                 |
+| `pwd`       | Print working directory                                                    |
+| `ls`        | File and directory listing                                                 |
+| `cat`       | Display contents of a file                                                 |
+| `env`       | Display process environment variables                                      |
+| `spawn`     | Spawn a child process                                                      |
+| `drives`    | List drives                                                                |
+| `mv`        | Move a file to a new destination                                           |
+| `sleep`     | Sleep for seconds with jitter                                              |
+| `cp`        | Copy a file                                                                |
+| `exit-all`  | Exits the agent, agent won't callback anymore                              |
+| `load`      | Load a node PE file from disk into the process                             |
+| `scexec`    | Execute shellcode                                                          |
+| `assembly`  | Execute a .NET assembly and get command output                             |
+| `upload`    | Upload a file from your local operator box to the remote agent box         |
+| `download`  | Download a file from remote agent box to local operator box                |
+| `scan`      | Scan. Usage: `scan [-p]`                                                   |
+| `dns`       | DNS lookup. Usage: `dns [-all | -mx | -txt | -cname]`                      |
+| `set`       | Set the Node load paths for assembly node and scexec nodes                 |  
 
 #### `Set` - Loading Nodes from Application Control Exclusion Paths
 - If there are application control rules preventing library loads for the node files you can use the `set` command to change the load paths for `assembly.node` and `scexec.node`. 
