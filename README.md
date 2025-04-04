@@ -25,13 +25,14 @@ For more information see my blog post about backdooring Electron applications wi
 - [Bypassing Windows Defender Application Control with Loki C2](https://www.ibm.com/think/x-force/bypassing-windows-defender-application-control-loki-c2)
 
 ## Features & Details
-- Teamserver-less, unlike traditional C2's where agents send messages to a Teamserver, there is no Teamserver.
-  - The GUI Client & Agents both check the same online data-store for new commands and output. 
 - Uses Azure Storage Blobs for C2 channel.
   - All C2 messages are AES encrypted uaing a dynamically created AES key.
   - Uses SAS Token to protect C2 storage account.
 - Proxy-aware agent.
   - Uses Chromium renderer child processes for agent, shellcode execution, and assembly fork-n-run style execution, so inherits proxy-aware capabilities of Chromium.
+- Teamserver-less
+  - Unlike traditional C2's where agents send messages to a Teamserver, there is no Teamserver.
+  - The GUI client & agents both checkin to the same data-store for commands and output. 
 - Hidden window and does not show in taskbar after execution, Loki process is ran in background.
   - Can stay alive for months calling back until the computer is restarted.
 - Robust exception handling in kernel process, if agent child process dies from an exception or bug then kernel spawns a new agent process. 
