@@ -67,7 +67,7 @@ _When backdooring an Electron app with Loki C2 code you don't need to compile th
 #### Step 2 : Create Obfuscated Loki Payload
 - Clone this repo and `cd` into it
 - Install Node.JS
-- Install Node.JS `javascript-obfuscator` module
+- Install `javascript-obfuscator` module
 ```
 npm install --save-dev javascript-obfuscator
 ```
@@ -96,8 +96,7 @@ bobby$ node obfuscateAgent.js
 ```
 #### Step 3 : Backdoor Electron Application
 - Your obfuscated Loki payload is output to `./app/`
-- Change directory to root of your Electron application
-- Change directory to the `{ELECTRONAPP}/resources/` directory 
+- Change directory to the `{ELECTRONAPP}/resources/`  
 - Delete everything
 - Copy the Loki `./app/` folder to `{ELECTRONAPP}/resources/app/`
 - Click the Electron PE file and make sure Loki works
