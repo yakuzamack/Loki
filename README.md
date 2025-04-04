@@ -144,8 +144,9 @@ bobby$ node obfuscateAgent.js
 #### Step 4 : Configure Loki Client
 - Launch the Loki GUI client
 - From the menubar click `Loki Client > Configuration` to open the Settings window
-- Enter in your Storage Account details and click `Save`  
-![](./docs/images/lokisettings.png)
+- Enter in your Storage Account details and click `Save`
+  
+  ![](./docs/images/lokisettings.png)
 - The agent should now render in the dashboard
 - Click the agent from the dashboard table to open the agent window
 - Test to ensure Loki works properly
