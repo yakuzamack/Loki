@@ -14,8 +14,10 @@ Stage 1 C2 for backdooring Electron applications to bypass application controls.
 | [Clinton Elves](https://www.linkedin.com/in/clinton-elves-180ba0148/) | Video Creator |
 
 ## Tutorial Video
-Check out [Simon Exley & Clinton Elves](https://x.com/SimonExley25688) video on getting up and running with Loki C2 by backdooring VS Code! 🥷🔥🪄🧙‍♂️
-- [Bypassing EDR in 2025 with Loki C2](https://youtu.be/c8DgrpwJWw0)(YouTube)
+Check out [Simon Exley & Clinton Elves](https://x.com/SimonExley25688) video on getting up and running with Loki C2 by backdooring VS Code! 🥷🔥🪄🧙‍♂️  
+
+[![Bypassing Windows Defender Application Control with Loki C2](./docs/images/youtubethumbnail.png)](https://www.youtube.com/watch?v=c8DgrpwJWw0)
+
 
 ## 🪄 Description
 At runtime, an Electron application reads JavaScript files, interprets their code and executes them within the Electron process. The animation below demonstrates how the Microsoft Teams Electron application reads a JavaScript file at runtime, which then uses the Node.JS `child_process` module to execute `whoami.exe`.  
@@ -28,7 +30,7 @@ Loki was designed to backdoor Electron applications by replacing the application
 
 For more information see my blog post about backdooring Electron applications with Loki C2:  
 
-- [Bypassing Windows Defender Application Control with Loki C2](https://www.ibm.com/think/x-force/bypassing-windows-defender-application-control-loki-c2)
+- [Bypassing Windows Defender Application Control with Loki C2](https://www.ibm.com/think/x-force/bypassing-windows-defender-application-control-loki-c2)=
 
 ## Features & Details
 - Uses Azure Storage Blobs for C2 channel.
