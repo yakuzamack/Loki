@@ -105,7 +105,7 @@ First you need to identify a vulnerable Electron application which does not do A
 | ❌         | Slack           | `slack.exe`         | |
 
 ### Simple Instructions
-_When backdooring an Electron app with Loki C2 code you don't need to compile the agent. You just replace the contents of `/resources/app/` with the agent JavaScript files._
+_You don't need to compile the agent when backdooring Electron apps. Just replace the contents of `{ELECTRONAPP}/resources/app/` with the Loki agent files._
 
 ### Detailed Instructions
 #### Step 1 : Create Azure Storage Blob Account and get SAS Token
