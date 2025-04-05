@@ -10,6 +10,12 @@ Stage 1 C2 for backdooring Electron applications to bypass application controls.
 | [Bobby Cooke](https://x.com/0xBoku)    | Creator & Maintainer |
 | [Dylan Tran](https://x.com/d_tranman)  | Creator |
 | [Ellis Springe](https://x.com/knavesec)| Alpha Tester |
+| [Simon Exley](https://www.linkedin.com/in/simon-exley-355816194/) | Video Creator |
+| [Clinton Elves](https://www.linkedin.com/in/clinton-elves-180ba0148/) | Video Creator |
+
+## Tutorial Video
+Check out [Simon Exley & Clinton Elves](https://x.com/SimonExley25688) video on getting up and running with Loki C2 by backdooring VS Code! 🥷🔥🪄🧙‍♂️
+- [Bypassing EDR in 2025 with Loki C2](https://youtu.be/c8DgrpwJWw0)(YouTube)
 
 ## 🪄 Description
 At runtime, an Electron application reads JavaScript files, interprets their code and executes them within the Electron process. The animation below demonstrates how the Microsoft Teams Electron application reads a JavaScript file at runtime, which then uses the Node.JS `child_process` module to execute `whoami.exe`.  
