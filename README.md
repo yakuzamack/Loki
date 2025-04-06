@@ -212,6 +212,7 @@ These are the compile instructions for building the agents & clients. The instru
 ### Client
 - [Windows](./docs/compile/client/windows.md)
 - [macOS](./docs/compile/client/macos.md)
+- [Linux](./docs/compile/client/linux.md)
 
 ### Agents
 **If you are backdooring an Electron application then you don't need to compile agents.**  
