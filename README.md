@@ -31,7 +31,7 @@ Loki was designed to backdoor Electron applications by replacing the application
 
 For more information see my blog post about backdooring Electron applications with Loki C2:  
 
-- [Bypassing Windows Defender Application Control with Loki C2](https://www.ibm.com/think/x-force/bypassing-windows-defender-application-control-loki-c2)=
+- [Bypassing Windows Defender Application Control with Loki C2](https://www.ibm.com/think/x-force/bypassing-windows-defender-application-control-loki-c2)
 
 ## Features & Details
 - Uses Azure Storage Blobs for C2 channel.
