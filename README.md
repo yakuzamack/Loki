@@ -12,6 +12,7 @@ Stage 1 C2 for backdooring Electron applications to bypass application controls.
 | [Ellis Springe](https://x.com/knavesec)| Alpha Tester |
 | [Simon Exley](https://www.linkedin.com/in/simon-exley-355816194/) | Video Creator |
 | [Clinton Elves](https://www.linkedin.com/in/clinton-elves-180ba0148/) | Video Creator |
+| [John Hammond](https://x.com/_JohnHammond) | Video Creator & Vulnerable App Discovery |
 
 ## Tutorial Video
 Check out [Simon Exley & Clinton Elves](https://x.com/SimonExley25688) video on getting up and running with Loki C2 by backdooring VS Code! 🥷🔥🪄🧙‍♂️  
@@ -97,14 +98,16 @@ First you need to identify a vulnerable Electron application which does not do A
 
 - [Guide for Discovering Vulnerable Electron Apps](docs/vulnhunt/electronapps.md)
 
-| Vulnerable | App Name       | EXE Name       | Version  | 
+| Vulnerable | App Name       | EXE Name       | Version  | Discovery Credit | 
 |------------|--------------|---------------|---------|
 | ✅         | Microsoft Teams | `Teams.exe`         | v1.7.00.13456|
+| ✅         | Cursor          | `cursor.exe`          | [John Hammond](https://x.com/_JohnHammond) | 
 | ✅         | VS Code         | `code.exe`          | |
 | ✅         | Github Desktop  | `GithubDesktop.exe` | |
 | ❌         | 1Password       | `1Password.exe`     | |
 | ❌         | Signal          | `Signal.exe`        | |
 | ❌         | Slack           | `slack.exe`         | |
+
 
 ### Simple Instructions
 _You don't need to compile the agent when backdooring Electron apps. Just replace the contents of `{ELECTRONAPP}/resources/app/` with the Loki agent files._
@@ -159,6 +162,46 @@ bobby$ node obfuscateAgent.js
 - The agent should now render in the dashboard
 - Click the agent from the dashboard table to open the agent window
 - Test to ensure Loki works properly
+
+
+## Backdooring Electron Apps and Keeping the real Application Working as Normal
+The most straightforward way to use Loki is to replace the files in `{ELECTRONAPP}/resources/app/` with the Loki files. This hollows out the app, meaning the app wont function normally -- Loki replaced its functionality.  
+
+If you really want to keep the Electron application running and have it also deploy Loki in the background all hope is not lost! [John Hammond](https://x.com/_JohnHammond) and I figured out a way to keep the real Electron application running. We've added the file you will need to `/loki/proxyapp/init.js` in this repo.
+
+It is currently setup to work for Cursor, discovered to be vulnerable by [John Hammond](https://x.com/_JohnHammond). 
+
+For doing this you will need to:
+- Download the Cursor app
+- Paste all Loki files except `package.json` to `cursor/resources/app/package.json`
+  - Don't replace the real `package.json`
+- Copy `/loki/proxyapp/init.js` to `cursor/resources/app/package.json`
+- Modify contents of `cursor/resources/app/package.json` to:
+  - set `"main":"init.js",`
+  - delete `"type":"module",`
+  - delete `"private":true,`
+
+### How this works
+- With these changes `Cursor.exe` will load in `init.js` on click / execution
+- `init.js` reads in `packages.json`
+- `init.js` changes `"main":"init.js",` -> `"main":"main.js",`
+  - `main.js` is Loki
+- `init.js` spawns and disowns a new `Cursor.exe` which points to Loki
+- __Loki is spawned in the background__
+- `init.js` reads in `packages.json` again
+- `init.js` changes `"main":"main.js",` -> `"main":"./out/main.js",`
+  - `./out/main.js"` is the real Cursor application
+- `init.js` spawns and disowns a new `Cursor.exe` which points to the real Cursor
+- __Real Cursor app is spawned, visible and operates as normal__
+- When Cursor is exited by the user:
+  - `init.js` catches the exit
+- `init.js` reads in `packages.json` for a third time
+- `init.js` changes `"main":"./out/main.js",` -> `"main":"init.js",`
+
+This way the app is persistently backdoored and operates as normal. If the cursor app is exited loki will continue to run in the background.
+
+### Future
+I'll make a script to automate this in the future.
 
 ## Opsec Recommendations
 - [Opsec Recommendations](docs/opsec/recommendations.md)
