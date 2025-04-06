@@ -35,8 +35,8 @@ For more information see my blog post about backdooring Electron applications wi
 
 ## Features & Details
 - Uses Azure Storage Blobs for C2 channel.
-  - All C2 messages are AES encrypted uaing a dynamically created AES key.
-  - Uses SAS Token to protect C2 storage account.
+  - All C2 messages are AES encrypted with dynamically created AES keys.
+  - SAS Token to protect C2 storage account.
 - Proxy-aware agent.
   - Uses Chromium renderer child processes for agent, shellcode execution, and assembly fork-n-run style execution, so inherits proxy-aware capabilities of Chromium.
 - Teamserver-less
