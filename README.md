@@ -173,10 +173,10 @@ It is currently setup to work for Cursor, discovered to be vulnerable by [John H
 
 For doing this you will need to:
 - Download the Cursor app
-- Paste all Loki files except `package.json` to `cursor/resources/app/package.json`
+- Paste all Loki files except `package.json` to `cursor/resources/app/`
   - Don't replace the real `package.json`
-- Copy `/loki/proxyapp/init.js` to `cursor/resources/app/package.json`
-- Modify contents of `cursor/resources/app/package.json` to:
+- Copy `/loki/proxyapp/init.js` to `cursor/resources/app/`
+- Modify contents of `cursor/resources/app/package.jaon` to:
   - set `"main":"init.js",`
   - delete `"type":"module",`
   - delete `"private":true,`
@@ -195,8 +195,8 @@ For doing this you will need to:
 - __Real Cursor app is spawned, visible and operates as normal__
 - When Cursor is exited by the user:
   - `init.js` catches the exit
-- `init.js` reads in `packages.json` for a third time
-- `init.js` changes `"main":"./out/main.js",` -> `"main":"init.js",`
+  - `init.js` reads in `packages.json` for a third time
+  - `init.js` changes `"main":"./out/main.js",` -> `"main":"init.js",`
 
 This way the app is persistently backdoored and operates as normal. If the cursor app is exited loki will continue to run in the background.
 
