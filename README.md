@@ -99,14 +99,14 @@ First you need to identify a vulnerable Electron application which does not do A
 - [Guide for Discovering Vulnerable Electron Apps](docs/vulnhunt/electronapps.md)
 
 | Vulnerable | App Name       | EXE Name       | Version  | Discovery Credit | 
-|------------|--------------|---------------|---------|
-| ✅         | Microsoft Teams | `Teams.exe`         | v1.7.00.13456|
-| ✅         | Cursor          | `cursor.exe`          | [John Hammond](https://x.com/_JohnHammond) | 
-| ✅         | VS Code         | `code.exe`          | |
-| ✅         | Github Desktop  | `GithubDesktop.exe` | |
-| ❌         | 1Password       | `1Password.exe`     | |
-| ❌         | Signal          | `Signal.exe`        | |
-| ❌         | Slack           | `slack.exe`         | |
+|------------|--------------|---------------|---------|----|
+| ✅         | Microsoft Teams | `Teams.exe`         | v1.7.00.13456| Andrew Kisliakov & [mr.d0x](https://twitter.com/@mrd0x) |
+| ✅         | Cursor          | `cursor.exe`        | | [John Hammond](https://x.com/_JohnHammond) | 
+| ✅         | VS Code         | `code.exe`          | | |
+| ✅         | Github Desktop  | `GithubDesktop.exe` | | |
+| ❌         | 1Password       | `1Password.exe`     | | |
+| ❌         | Signal          | `Signal.exe`        | | |
+| ❌         | Slack           | `slack.exe`         | | |
 
 
 ### Simple Instructions
@@ -240,7 +240,7 @@ I do not recommend compiling the agent and using it for operations. Agent compil
 - [Valentina Palmiotti (@chompie1337)](https://x.com/chompie1337), [Ellis Springe (@knavesec)](https://x.com/knavesec), and [Ruben Boonen](https://x.com/FuzzySec) for their previous internel work on backdooring Electron applications for persistence
 - [Ruben Boonen](https://x.com/FuzzySec)
   - [ Wild West Hackin’ Fest talk Statikk Shiv: Leveraging Electron Applications for Post-Exploitation](https://www.youtube.com/watch?v=VXb6lwXhCAc)
-- Andrew Kisliakov
+- Andrew Kisliakov 
   - [Microsoft Teams and other Electron Apps as LOLbins](https://l--k.uk/2022/01/16/microsoft-teams-and-other-electron-apps-as-lolbins/) 
 - [mr.d0x (@mrd0x)](https://twitter.com/@mrd0x) for their prior work about leveraging the Teams Electron application to execute arbitrary Node.JS code and publishing their findings to the LOLBAS project.
 - Michael Taggart
