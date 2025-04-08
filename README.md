@@ -10,6 +10,7 @@ Stage 1 C2 for backdooring Electron applications to bypass application controls.
 | [Bobby Cooke](https://x.com/0xBoku)    | Creator & Maintainer |
 | [Dylan Tran](https://x.com/d_tranman)  | Creator |
 | [Ellis Springe](https://x.com/knavesec)| Alpha Tester |
+| [Shawn Jones](https://x.com/anthemtotheego) | Assembly Execution Code | 
 | [Simon Exley](https://www.linkedin.com/in/simon-exley-355816194/) | Video Creator |
 | [Clinton Elves](https://www.linkedin.com/in/clinton-elves-180ba0148/) | Video Creator |
 | [John Hammond](https://x.com/_JohnHammond) | Video Creator & Vulnerable App Discovery |
@@ -242,7 +243,9 @@ I do not recommend compiling the agent and using it for operations. Agent compil
 - [Ruben Boonen](https://x.com/FuzzySec)
   - [ Wild West Hackin’ Fest talk Statikk Shiv: Leveraging Electron Applications for Post-Exploitation](https://www.youtube.com/watch?v=VXb6lwXhCAc)
 - Andrew Kisliakov 
-  - [Microsoft Teams and other Electron Apps as LOLbins](https://l--k.uk/2022/01/16/microsoft-teams-and-other-electron-apps-as-lolbins/) 
+  - [Microsoft Teams and other Electron Apps as LOLbins](https://l--k.uk/2022/01/16/microsoft-teams-and-other-electron-apps-as-lolbins/)
+- [Shawn Jones](https://x.com/anthemtotheego)
+  - For Loki assembly execution Dylan ported Shawns public [InlineExecute-Assembly](https://github.com/anthemtotheego/InlineExecute-Assembly) code 
 - [mr.d0x (@mrd0x)](https://twitter.com/@mrd0x) for their prior work about leveraging the Teams Electron application to execute arbitrary Node.JS code and publishing their findings to the LOLBAS project.
 - Michael Taggart
   - [quASAR project, a tool designed for modifying Electron applications to enable command execution](https://github.com/mttaggart/quasar)
