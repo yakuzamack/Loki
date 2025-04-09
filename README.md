@@ -15,7 +15,13 @@ Stage 1 C2 for backdooring Electron applications to bypass application controls.
 | [Clinton Elves](https://www.linkedin.com/in/clinton-elves-180ba0148/) | Video Creator |
 | [John Hammond](https://x.com/_JohnHammond) | Video Creator & Vulnerable App Discovery |
 
-## Tutorial Video
+## Videos
+Check out [John Hammonds](https://x.com/_JohnHammond) video on backdooring the Cursor AI application with Loki C2! 🎩       
+In the video he walksthrough discovering a new vulnerable Electron application, backdooring it with Loki C2, getting setup with the client GUI, and we even came up with two ways to keep the app running persistently in the background 🪄 -- Cursor runs normally from the end users perspective! 🥷      
+
+[![I Backdoored Cursor AI](./docs/images/hammond.png)]([https://youtu.be/FYok3diZY78)
+
+
 Check out [Simon Exley & Clinton Elves](https://x.com/SimonExley25688) video on getting up and running with Loki C2 by backdooring VS Code! 🥷🔥🪄🧙‍♂️  
 
 [![Bypassing Windows Defender Application Control with Loki C2](./docs/images/youtubethumbnail.png)](https://www.youtube.com/watch?v=c8DgrpwJWw0)
