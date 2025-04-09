@@ -17,7 +17,7 @@ Stage 1 C2 for backdooring Electron applications to bypass application controls.
 
 ## Videos
 Check out [John Hammonds](https://x.com/_JohnHammond) video on backdooring the Cursor AI application with Loki C2! 🎩       
-In the video he walksthrough discovering a new vulnerable Electron application, backdooring it with Loki C2, getting setup with the client GUI, and we even came up with two ways to keep the app running persistently in the background 🪄 -- Cursor runs normally from the end users perspective! 🥷      
+In the video he walks through discovering a new vulnerable Electron application, backdooring it with Loki C2, getting setup with the client GUI, and we even came up with two ways to keep the app running persistently in the background 🪄 -- Cursor runs normally from the end users perspective! 🥷      
 
 [![I Backdoored Cursor AI](./docs/images/hammond.png)]([https://youtu.be/FYok3diZY78)
 
@@ -49,12 +49,12 @@ For more information see my blog post about backdooring Electron applications wi
 - Teamserver-less
   - Unlike traditional C2's where agents send messages to a Teamserver, there is no Teamserver.
   - The GUI client & agents both checkin to the same data-store for commands and output. 
-- Hidden window and does not show in taskbar after execution, Loki process is ran in background.
+- Hidden window and does not show in taskbar after execution, Loki process is run in background.
   - Can stay alive for months calling back until the computer is restarted.
 - Robust exception handling in kernel process, if agent child process dies from an exception or bug then kernel spawns a new agent process. 
 
 ### Commands
-_All agent commands are written in native Node.JS and do not require additional dependecies or library load events. With the exception of the `scexec` and `assembly` commands which do a library load on `keytar.node` and `assembly.node`_
+_All agent commands are written in native Node.JS and do not require additional dependencies or library load events. With the exception of the `scexec` and `assembly` commands which do a library load on `keytar.node` and `assembly.node`_
 - All commands accept paths using `/`, `\` in paths will not work.
 
 | Command     | Description                                                                |
@@ -172,7 +172,7 @@ bobby$ node obfuscateAgent.js
 
 
 ## Backdooring Electron Apps and Keeping the real Application Working as Normal
-The most straightforward way to use Loki is to replace the files in `{ELECTRONAPP}/resources/app/` with the Loki files. This hollows out the app, meaning the app wont function normally -- Loki replaced its functionality.  
+The most straightforward way to use Loki is to replace the files in `{ELECTRONAPP}/resources/app/` with the Loki files. This hollows out the app, meaning the app won't function normally -- Loki replaced its functionality.  
 
 If you really want to keep the Electron application running and have it also deploy Loki in the background all hope is not lost! [John Hammond](https://x.com/_JohnHammond) and I figured out a way to keep the real Electron application running. We've added the file you will need to `/loki/proxyapp/init.js` in this repo.
 
@@ -183,26 +183,26 @@ For doing this you will need to:
 - Paste all Loki files except `package.json` to `cursor/resources/app/`
   - Don't replace the real `package.json`
 - Copy `/loki/proxyapp/init.js` to `cursor/resources/app/`
-- Modify contents of `cursor/resources/app/package.jaon` to:
+- Modify contents of `cursor/resources/app/package.json` to:
   - set `"main":"init.js",`
   - delete `"type":"module",`
   - delete `"private":true,`
 
 ### How this works
 - With these changes `Cursor.exe` will load in `init.js` on click / execution
-- `init.js` reads in `packages.json`
+- `init.js` reads in `package.json`
 - `init.js` changes `"main":"init.js",` -> `"main":"main.js",`
   - `main.js` is Loki
 - `init.js` spawns and disowns a new `Cursor.exe` which points to Loki
 - __Loki is spawned in the background__
-- `init.js` reads in `packages.json` again
+- `init.js` reads in `package.json` again
 - `init.js` changes `"main":"main.js",` -> `"main":"./out/main.js",`
   - `./out/main.js"` is the real Cursor application
 - `init.js` spawns and disowns a new `Cursor.exe` which points to the real Cursor
 - __Real Cursor app is spawned, visible and operates as normal__
 - When Cursor is exited by the user:
   - `init.js` catches the exit
-  - `init.js` reads in `packages.json` for a third time
+  - `init.js` reads in `package.json` for a third time
   - `init.js` changes `"main":"./out/main.js",` -> `"main":"init.js",`
 
 This way the app is persistently backdoored and operates as normal. If the cursor app is exited loki will continue to run in the background.
@@ -237,7 +237,7 @@ I do not recommend compiling the agent and using it for operations. Agent compil
 - Electron apps beaconing to an Azure Storage Blob `*.blob.core.windows.net`
 - SAS token usage in network traffic
 - Electron apps spawning child processes such as `netstat.exe` or `whoami.exe`
-- A directory with the name in the Loki `packages.json` will be created in `~/AppData/Roaming/{NAME}` when the Loki JavaScript executes in the Electron process.
+- A directory with the name in the Loki `package.json` will be created in `~/AppData/Roaming/{NAME}` when the Loki JavaScript executes in the Electron process.
 - This [LOLBAS Teams](https://lolbas-project.github.io/lolbas/OtherMSBinaries/Teams/) entry covers detections for Electron application backdooring. The detection information has been copied below.  
 - IOC: `%LOCALAPPDATA%\Microsoft\Teams\current\app` directory created
 - IOC: `%LOCALAPPDATA%\Microsoft\Teams\current\app.asar` file created/modified by non-Teams installer/updater
@@ -245,13 +245,13 @@ I do not recommend compiling the agent and using it for operations. Agent compil
 # References || Acknowledgements || Offensive Electron Research 
 - [Dylan Tran (@d_tranman)](https://x.com/d_tranman)
   - Cocreator of the Loki agent. Created node modules for shellcode and assembly execution.  
-- [Valentina Palmiotti (@chompie1337)](https://x.com/chompie1337), [Ellis Springe (@knavesec)](https://x.com/knavesec), and [Ruben Boonen](https://x.com/FuzzySec) for their previous internel work on backdooring Electron applications for persistence
+- [Valentina Palmiotti (@chompie1337)](https://x.com/chompie1337), [Ellis Springe (@knavesec)](https://x.com/knavesec), and [Ruben Boonen](https://x.com/FuzzySec) for their previous internal work on backdooring Electron applications for persistence
 - [Ruben Boonen](https://x.com/FuzzySec)
   - [ Wild West Hackin’ Fest talk Statikk Shiv: Leveraging Electron Applications for Post-Exploitation](https://www.youtube.com/watch?v=VXb6lwXhCAc)
 - Andrew Kisliakov 
   - [Microsoft Teams and other Electron Apps as LOLbins](https://l--k.uk/2022/01/16/microsoft-teams-and-other-electron-apps-as-lolbins/)
 - [Shawn Jones](https://x.com/anthemtotheego)
-  - For Loki assembly execution Dylan ported Shawns public [InlineExecute-Assembly](https://github.com/anthemtotheego/InlineExecute-Assembly) code 
+  - For Loki assembly execution Dylan ported Shawn’s public [InlineExecute-Assembly](https://github.com/anthemtotheego/InlineExecute-Assembly) code 
 - [mr.d0x (@mrd0x)](https://twitter.com/@mrd0x) for their prior work about leveraging the Teams Electron application to execute arbitrary Node.JS code and publishing their findings to the LOLBAS project.
 - Michael Taggart
   - [quASAR project, a tool designed for modifying Electron applications to enable command execution](https://github.com/mttaggart/quasar)
