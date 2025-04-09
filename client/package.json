@@ -1,0 +1,60 @@
+{
+  "name": "loki-c2-client",
+  "version": "1.0.0",
+  "main": "./kernel.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "keywords": [],
+  "author": "Bobby Cooke",
+  "homepage": "https://0xBoku.com",
+  "license": "MIT",
+  "description": "",
+  "devDependencies": {
+    "electron": "^31.1.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.0xBoku.Loki-C2-Client",
+    "productName": "Loki C2 Client",
+    "copyright": "© 2025 Bobby Cooke",
+    "asar": true,
+    "files": [
+      "kernel.js",
+      "*.html",
+      "*.js",
+      "*.css",
+      "assets/**",
+      "!node_modules/electron-builder/**"
+    ],
+    "mac": {
+      "icon": "assets/mac/icon.icns",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "icon": "assets/win/icon.ico",
+      "target": [
+        "msi",
+        "portable",
+        "nsis",
+        "zip"
+      ]
+    },
+    "linux": {
+      "icon": "assets/linux/icon.png",
+      "target": [
+        "AppImage"
+      ]
+    }
+  },
+  "dependencies": {
+    "@azure/storage-blob": "^12.23.0",
+    "https-proxy-agent": "^7.0.4"
+  }
+}
