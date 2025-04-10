@@ -110,7 +110,8 @@ First you need to identify a vulnerable Electron application which does not do A
 | ✅         | Microsoft Teams | `Teams.exe`         | v1.7.00.13456| Andrew Kisliakov & [mr.d0x](https://twitter.com/@mrd0x) |
 | ✅         | Cursor          | `cursor.exe`        | | [John Hammond](https://x.com/_JohnHammond) | 
 | ✅         | VS Code         | `code.exe`          | | |
-| ✅         | Github Desktop  | `GithubDesktop.exe` | | |
+| ✅         | Github Desktop  | `GithubDesktop.exe` | | | 
+| ✅         | Joplin  | `Joplin.exe` | | [0xAnom4ly](https://github.com/0xAnom4ly) |
 | ✅         | Discord         | `Discord.exe`       | | [clod81](https://github.com/clod81) |
 | ❌         | 1Password       | `1Password.exe`     | | |
 | ❌         | Signal          | `Signal.exe`        | | |
