@@ -13,7 +13,7 @@ Stage 1 C2 for backdooring Electron applications to bypass application controls.
 | [Shawn Jones](https://x.com/anthemtotheego) | Assembly Execution Code | 
 | [Simon Exley](https://www.linkedin.com/in/simon-exley-355816194/) | Video Creator |
 | [Clinton Elves](https://www.linkedin.com/in/clinton-elves-180ba0148/) | Video Creator |
-| [John Hammond](https://x.com/_JohnHammond) | Video Creator & Vulnerable App Discovery |
+| [John Hammond](https://x.com/_JohnHammond) | Video Creator |
 
 ## Videos
 Check out [John Hammonds](https://x.com/_JohnHammond) video on backdooring the Cursor AI application with Loki C2! 🎩       
