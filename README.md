@@ -111,6 +111,7 @@ First you need to identify a vulnerable Electron application which does not do A
 | ✅         | VS Code         | `code.exe`          | | |
 | ✅         | Github Desktop  | `GithubDesktop.exe` | | |
 | ✅         | [Postman](https://www.postman.com/downloads/)         | `Postman.exe`       | | [clod81](https://github.com/clod81) |
+| ✅         | [Obsidian](https://obsidian.md/download) | `Obsidian.exe`      | | [clod81](https://github.com/clod81) |
 | ✅         | Discord         | `Discord.exe`       | | [clod81](https://github.com/clod81) |
 | ❌         | 1Password       | `1Password.exe`     | | |
 | ❌         | Signal          | `Signal.exe`        | | |
