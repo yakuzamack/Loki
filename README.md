@@ -112,6 +112,7 @@ First you need to identify a vulnerable Electron application which does not do A
 | ✅         | VS Code         | `code.exe`          | | |
 | ✅         | Github Desktop  | `GithubDesktop.exe` | | |
 | ✅         | Discord         | `Discord.exe`       | | [clod81](https://github.com/clod81) |
+| ✅         | Windsurf         | `Windsurf.exe`       | | [nero22k](https://github.com/Nero22k) |
 | ❌         | 1Password       | `1Password.exe`     | | |
 | ❌         | Signal          | `Signal.exe`        | | |
 | ❌         | Slack           | `slack.exe`         | | |
