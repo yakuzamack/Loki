@@ -112,6 +112,7 @@ First you need to identify a vulnerable Electron application which does not do A
 | ✅         | Github Desktop  | `GithubDesktop.exe` | | |
 | ✅         | [Postman](https://www.postman.com/downloads/)         | `Postman.exe`       | | [clod81](https://github.com/clod81) |
 | ✅         | [Obsidian](https://obsidian.md/download) | `Obsidian.exe`      | | [clod81](https://github.com/clod81) |
+| ✅         | Joplin  | `Joplin.exe` | | [0xAnom4ly](https://github.com/0xAnom4ly) |
 | ✅         | Discord         | `Discord.exe`       | | [clod81](https://github.com/clod81) |
 | ✅         | [Windsurf](https://windsurf.com/download)         | `Windsurf.exe`       | | [nero22k](https://github.com/Nero22k) |
 | ❌         | 1Password       | `1Password.exe`     | | |
