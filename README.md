@@ -26,7 +26,7 @@ For more details on how Loki works, checkout this blog post:
 | [John Hammond](https://x.com/_JohnHammond) | Video Creator |
 
 ## Videos
-Check out [John Hammonds](https://x.com/_JohnHammond) video on backdooring the Cursor AI application with Loki C2! 🎩       
+Check out this video by [John Hammond](https://x.com/_JohnHammond) on backdooring Cursor AI with Loki C2! 🎩       
 - In the video he walks through discovering a new vulnerable Electron application, backdooring it with Loki C2, getting setup with the client GUI, and we even came up with two ways to keep the app running persistently in the background 🪄 -- Cursor runs normally from the end users perspective! 🥷      
 
 [![I Backdoored Cursor AI](./docs/images/hammond.png)](https://www.youtube.com/watch?v=FYok3diZY78)
