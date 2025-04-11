@@ -4,14 +4,12 @@
   "main": "./main.js",
   "scripts": {
     "start": "electron .",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "pack": "electron-builder --dir",
     "dist": "electron-builder"
   },
   "keywords": [],
   "author": "",
   "homepage": "",
-  "license": "MIT",
+  "license": "",
   "description": "",
   "devDependencies": {
     "electron": "^31.1.0",
@@ -51,9 +49,5 @@
         "AppImage"
       ]
     }
-  },
-  "dependencies": {
-    "@azure/storage-blob": "^12.23.0",
-    "https-proxy-agent": "^7.0.4"
   }
 }

@@ -1,4 +1,3 @@
-
 async function func_Split_Quoted_String(str) {
   const result = [];
   let current = '';
@@ -51,30 +50,26 @@ async function func_Split_Quoted_String(str) {
 
   return result;
 }
-async function numcheck(value, defaultNumber, min = 1, max = 900) 
-{
+
+async function numcheck(value, defaultNumber, min = 1, max = 900) {
   if (typeof value !== 'number' || isNaN(value)) {
-      value = defaultNumber;
+    value = defaultNumber;
   }
   if (value < min) {
-      return min;
+    return min;
   } else if (value > max) {
-      return max;
+    return max;
   } else {
-      return value;
+    return value;
   }
 }
 
-async function getrand(number, percent) 
-{
-  try
-  {
+async function getrand(number, percent) {
+  try {
     // Calculate the range based on the percentage
     number = Number(number);
     percent = Number(percent);
-    //common.logToFile(`getRandomValue(${number},${percent})`);
     const range = number * (percent / 100);
-    //common.logToFile(`range : ${range}`);
 
     // Calculate the minimum and maximum values
     let minValue = number - range;
@@ -86,22 +81,18 @@ async function getrand(number, percent)
       maxValue = 1000;
     }
 
-    if(maxValue > 600000){
+    if (maxValue > 600000) {
       maxValue = 600000;
     }
-    //common.logToFile(`min value : ${minValue}`);
-    //common.logToFile(`max value : ${maxValue}`);
 
     // Generate a random value between minValue and maxValue
     const randomValue = Math.random() * (maxValue - minValue) + minValue;
 
     return Math.floor(randomValue);
-
-  }catch( error )
-  {
+  } catch (error) {
+    // Handle error if needed
   }
 }
-
 
 module.exports = {
   func_Split_Quoted_String,

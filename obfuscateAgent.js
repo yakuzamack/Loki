@@ -52,24 +52,24 @@ if (argMap.h || argMap.help) {
 Usage: node obfuscateAgent.js [AppName] [--account <StorageAccount>] [--token <SASToken>] [--meta <ContainerName>] [-h|--help] [--debug|-d]
 
 Arguments:
-  AppName              Optional. Used to name the final output in package.json.
-                       Must be lowercase, start with a letter, contain only letters, numbers, or dashes.
-  --account            Azure Storage Account name. Will prompt if not provided.
-  --token              Azure SAS Token. Will prompt if not provided.
-  --meta               Container name for metadata. If omitted, a random name is generated.
-  --cleanup            Remove node modules, package.json, and other dependency files after execution.
-  -h, --help           Show this help message and exit.
-  --debug, -d          Enable verbose output about file operations.
+    AppName              Optional. Used to name the final output in package.json.
+                        Must be lowercase, start with a letter, contain only letters, numbers, or dashes.
+    --account            Azure Storage Account name. Will prompt if not provided.
+    --token              Azure SAS Token. Will prompt if not provided.
+    --meta               Container name for metadata. If omitted, a random name is generated.
+    --cleanup            Remove node modules, package.json, and other dependency files after execution.
+    -h, --help           Show this help message and exit.
+    --debug, -d          Enable verbose output about file operations.
 
 Example:
-  node obfuscateAgent.js MyTool --account myacct --token 'se=2025...' --meta metaX123456 --debug
+    node obfuscateAgent.js MyTool --account myacct --token 'se=2025...' --meta metaX123456 --debug
 
 This script:
-  - Obfuscates JavaScript files in ./agent and writes to ./app
-  - Updates ./agent/config.js with storage config
-  - Copies config to ./config.js
-  - Generates or updates package.json
-  - [Optional] Cleans up node_modules, package.json, etc. after execution
+    - Obfuscates JavaScript files in ./agent and writes to ./app
+    - Updates ./agent/config.js with storage config
+    - Copies config to ./config.js
+    - Generates or updates package.json
+    - [Optional] Cleans up node_modules, package.json, etc. after execution
 `);
     process.exit(0);
 }

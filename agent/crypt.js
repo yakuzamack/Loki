@@ -61,23 +61,18 @@ async function func_Base64_Decode(base64) {
   return decoded;
 }
 
-// function generateUUID(len) {
-//     // Generate a random UUID
-//     if (len > 20){len = 20};
-//     const uuid = crypto.randomUUID();
-//     // Remove hyphens and take the first 10 characters
-//     const shortUUID = uuid.replace(/-/g, '').substring(0, len);
-//     return shortUUID;
-// }
-
 function generateUUID(len) {
   if (len > 20) len = 20; // Limit max length to 20
+  if (len < 1) return ''; // Handle invalid length
 
-  // Generate random bytes and convert to hex
-  const uuid = crypto.randomBytes(Math.ceil(len / 2)).toString('hex');
+  const letters = 'abcdefghijklmnopqrstuvwxyz';
+  const firstChar = letters[Math.floor(Math.random() * letters.length)];
 
-  // Trim to the required length
-  return uuid.substring(0, len);
+  if (len === 1) return firstChar;
+
+  // Generate (len - 1) hex characters
+  const uuid = crypto.randomBytes(Math.ceil((len - 1) / 2)).toString('hex');
+  return (firstChar + uuid).substring(0, len);
 }
 
 module.exports = {
