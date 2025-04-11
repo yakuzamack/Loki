@@ -31,7 +31,7 @@ Check out this video by [John Hammond](https://x.com/_JohnHammond) on backdoorin
 
 [![I Backdoored Cursor AI](./docs/images/hammond.png)](https://www.youtube.com/watch?v=FYok3diZY78)
 
-Check out [Simon Exley & Clinton Elves](https://x.com/SimonExley25688) video on getting up and running with Loki C2 by backdooring VS Code! 🥷🔥🪄🧙‍♂️  
+Check out this video by [Simon Exley & Clinton Elves](https://x.com/SimonExley25688) on getting up and running with Loki C2! 🥷  
 
 [![Bypassing Windows Defender Application Control with Loki C2](./docs/images/youtubethumbnail.png)](https://www.youtube.com/watch?v=c8DgrpwJWw0)
 
