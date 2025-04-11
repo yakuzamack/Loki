@@ -104,20 +104,20 @@ First you need to identify a vulnerable Electron application which does not do A
 
 - [Guide for Discovering Vulnerable Electron Apps](docs/vulnhunt/electronapps.md)
 
-| Vulnerable | App Name       | EXE Name       | Version  | Discovery Credit | 
-|------------|--------------|---------------|---------|----|
-| ✅         | Microsoft Teams | `Teams.exe`         | v1.7.00.13456| Andrew Kisliakov & [mr.d0x](https://twitter.com/@mrd0x) |
-| ✅         | Cursor          | `cursor.exe`        | | [John Hammond](https://x.com/_JohnHammond) | 
-| ✅         | VS Code         | `code.exe`          | | |
-| ✅         | Github Desktop  | `GithubDesktop.exe` | | |
-| ✅         | [Postman](https://www.postman.com/downloads/)         | `Postman.exe`       | | [clod81](https://github.com/clod81) |
-| ✅         | [Obsidian](https://obsidian.md/download) | `Obsidian.exe`      | | [clod81](https://github.com/clod81) |
-| ✅         | Joplin  | `Joplin.exe` | | [0xAnom4ly](https://github.com/0xAnom4ly) |
-| ✅         | Discord         | `Discord.exe`       | | [clod81](https://github.com/clod81) |
-| ✅         | [Windsurf](https://windsurf.com/download)         | `Windsurf.exe`       | | [nero22k](https://github.com/Nero22k) |
-| ❌         | 1Password       | `1Password.exe`     | | |
-| ❌         | Signal          | `Signal.exe`        | | |
-| ❌         | Slack           | `slack.exe`         | | |
+| Vulnerable | App Name                                       | EXE Name            | Version         | Discovery Credit                                         | 
+|------------|------------------------------------------------|---------------------|-----------------|----------------------------------------------------------|
+| ✅         | Microsoft Teams                                | `Teams.exe`         | `1.7.00.13456`  | Andrew Kisliakov & [mr.d0x](https://twitter.com/@mrd0x) |
+| ✅         | Cursor                                         | `cursor.exe`        | `0.48.7.0`      | [John Hammond](https://x.com/_JohnHammond) | 
+| ✅         | VS Code                                        | `code.exe`          |                 | [chompie1337](https://x.com/chompie1337) & [knavesec](https://x.com/knavesec)|
+| ✅         | Github Desktop                                 | `GithubDesktop.exe` | `3.4.6.0`       | [d_tranman](https://x.com/d_tranman) & [0xBoku](https://x.com/0xBoku) |
+| ✅         | [Postman](https://www.postman.com/downloads/)  | `Postman.exe`       |                 | [clod81](https://github.com/clod81) |
+| ✅         | [Obsidian](https://obsidian.md/download)       | `Obsidian.exe`      |                 | [clod81](https://github.com/clod81) |
+| ✅         | Joplin                                         | `Joplin.exe`        |                 | [0xAnom4ly](https://github.com/0xAnom4ly) |
+| ✅         | Discord                                        | `Discord.exe`       |                 | [clod81](https://github.com/clod81) |
+| ✅         | [Windsurf](https://windsurf.com/download)      | `Windsurf.exe`      |                 | [nero22k](https://github.com/Nero22k) |
+| ❌         | 1Password                                      | `1Password.exe`     |                 |               |
+| ❌         | Signal                                         | `Signal.exe`        |                 |               |
+| ❌         | Slack                                          | `slack.exe`         |                 |               |
 
 
 ### Simple Instructions
