@@ -1,5 +1,15 @@
 # 🧙‍♂️ Loki Command & Control
-Stage 1 C2 for backdooring Electron applications to bypass application controls. This technique abuses the trust of signed vulnerable Electron applications to gain execution on a target system. 
+Loki is a stage-1 command and control (C2) framework written in Node.js, built to script-jack vulnerable Electron apps. Developed for red team operations, Loki enables evasion of security software and bypasses application controls by exploiting trusted, signed Electron apps.
+
+Script-jacking is the act of hijacking the execution flow of an Electron app by injecting arbitrary JavaScript into files loaded at runtime. This technique can be leveraged to:
+- Backdoor the Electron app
+- Hollow out the Electron app
+- Chain execution to another process
+
+While several tools already address leveraging script-jacking to chain execution to another process, Loki is the first to enable backdooring and hollowing of signed Electron apps without invalidating their code signing signature.
+
+For more details on how Loki works, checkout this blog post:  
+- [Bypassing Windows Defender Application Control with Loki C2](https://www.ibm.com/think/x-force/bypassing-windows-defender-application-control-loki-c2)
 
 ![](./docs/images/lokiscreencap.png)
 
@@ -25,32 +35,16 @@ Check out [Simon Exley & Clinton Elves](https://x.com/SimonExley25688) video on 
 
 [![Bypassing Windows Defender Application Control with Loki C2](./docs/images/youtubethumbnail.png)](https://www.youtube.com/watch?v=c8DgrpwJWw0)
 
-
-## 🪄 Description
-At runtime, an Electron application reads JavaScript files, interprets their code and executes them within the Electron process. The animation below demonstrates how the Microsoft Teams Electron application reads a JavaScript file at runtime, which then uses the Node.JS `child_process` module to execute `whoami.exe`.  
-
-![](docs/images/electron6.gif)
-
-Since Electron applications execute JavaScript at runtime, modifying these JavaScript files allows attackers to inject arbitrary Node.js code into the Electron process. By leveraging Node.js and Chromium APIs, JavaScript code can interact with the operating system.
-
-Loki was designed to backdoor Electron applications by replacing the applications JavaScript files with the Loki Command & Control JavaScript files.
-
-For more information see my blog post about backdooring Electron applications with Loki C2:  
-
-- [Bypassing Windows Defender Application Control with Loki C2](https://www.ibm.com/think/x-force/bypassing-windows-defender-application-control-loki-c2)
-
 ## Features & Details
-- Uses Azure Storage Blobs for C2 channel.
-  - All C2 messages are AES encrypted with dynamically created AES keys.
-  - SAS Token to protect C2 storage account.
-- Proxy-aware agent.
-  - Uses Chromium renderer child processes for agent, shellcode execution, and assembly fork-n-run style execution, so inherits proxy-aware capabilities of Chromium.
+- Azure Storage Blob C2 channel
+  - SAS Token to protect C2 storage account
+- AES encrypted C2 messages
+- Proxy-aware agent
+  - Uses Chromium renderer child processes for agent, shellcode execution, and assembly fork-n-run style execution -- inherits proxy-aware capabilities of Chromium.
 - Teamserver-less
-  - Unlike traditional C2's where agents send messages to a Teamserver, there is no Teamserver.
-  - The GUI client & agents both checkin to the same data-store for commands and output. 
-- Hidden window and does not show in taskbar after execution, Loki process is run in background.
-  - Can stay alive for months calling back until the computer is restarted.
-- Robust exception handling in kernel process, if agent child process dies from an exception or bug then kernel spawns a new agent process. 
+  - Unlike traditional C2's where agents send messages to a Teamserver, there is no Teamserver
+  - The GUI client & agents both checkin to the same data-store
+- Hidden exection -- runs in the background
 
 ### Commands
 _All agent commands are written in native Node.JS and do not require additional dependencies or library load events. With the exception of the `scexec` and `assembly` commands which do a library load on `keytar.node` and `assembly.node`_
