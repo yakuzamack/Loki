@@ -113,6 +113,7 @@ First you need to identify a vulnerable Electron application which does not do A
 | ✅         | [Postman](https://www.postman.com/downloads/)         | `Postman.exe`       | | [clod81](https://github.com/clod81) |
 | ✅         | [Obsidian](https://obsidian.md/download) | `Obsidian.exe`      | | [clod81](https://github.com/clod81) |
 | ✅         | Discord         | `Discord.exe`       | | [clod81](https://github.com/clod81) |
+| ✅         | [Windsurf](https://windsurf.com/download)         | `Windsurf.exe`       | | [nero22k](https://github.com/Nero22k) |
 | ❌         | 1Password       | `1Password.exe`     | | |
 | ❌         | Signal          | `Signal.exe`        | | |
 | ❌         | Slack           | `slack.exe`         | | |
