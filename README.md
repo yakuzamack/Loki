@@ -6,7 +6,7 @@ Script-jacking is the act of hijacking the execution flow of an Electron app by 
 - __Hollow out the Electron app__
 - Chain execution to another process
 
-While several tools already address leveraging script-jacking to chain execution to another process, Loki is the first to enable backdooring and hollowing of signed Electron apps without invalidating their code signing signature.
+_While several tools already address leveraging script-jacking to chain execution to another process, Loki is the first to enable backdooring and hollowing of signed Electron apps without invalidating their code signing signature._
 
 For more details on how Loki works, checkout this blog post:  
 - [Bypassing Windows Defender Application Control with Loki C2](https://www.ibm.com/think/x-force/bypassing-windows-defender-application-control-loki-c2)
