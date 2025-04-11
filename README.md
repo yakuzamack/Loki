@@ -1,7 +1,7 @@
 # 🧙‍♂️ Loki Command & Control
 Loki is a stage-1 command and control (C2) framework written in Node.js, built to script-jack vulnerable Electron apps _[MITRE ATT&CK T1218.015](https://attack.mitre.org/techniques/T1218/015/)_. Developed for red team operations, Loki enables evasion of security software and bypasses application controls by exploiting trusted, signed Electron apps.
 
-Script-jacking is the act of hijacking the execution flow of an Electron app by modifying JavaScript files loaded at runtime with arbitrary Node.js code. This technique can be leveraged to:
+Script-jacking hijacks the execution flow of an Electron app by modifying JavaScript files loaded in at runtime with arbitrary Node.js code. This technique can be leveraged to:
 - __Backdoor the Electron app__
 - __Hollow out the Electron app__
 - Chain execution to another process
