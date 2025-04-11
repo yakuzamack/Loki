@@ -11,6 +11,7 @@ _While several tools already address leveraging script-jacking to chain executio
 For more details on how Loki works, checkout this blog post:  
 - [Bypassing Windows Defender Application Control with Loki C2](https://www.ibm.com/think/x-force/bypassing-windows-defender-application-control-loki-c2)
 
+
 ![](./docs/images/lokiscreencap.png)
 
 ## 🚀 Contributors
@@ -31,7 +32,7 @@ Check out this video by [John Hammond](https://x.com/_JohnHammond) on backdoorin
 
 [![I Backdoored Cursor AI](./docs/images/hammond.png)](https://www.youtube.com/watch?v=FYok3diZY78)
 
-Check out this video by [Simon Exley & Clinton Elves](https://x.com/SimonExley25688) on getting up and running with Loki C2! 🥷  
+Check out this video by [Simon Exley & Clinton Elves](https://x.com/SimonExley25688) on getting up and running with Loki C2! 🧙‍♂️  
 
 [![Bypassing Windows Defender Application Control with Loki C2](./docs/images/youtubethumbnail.png)](https://www.youtube.com/watch?v=c8DgrpwJWw0)
 
