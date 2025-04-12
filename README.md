@@ -99,20 +99,21 @@ First you need to identify a vulnerable Electron application which does not do A
 
 - [Guide for Discovering Vulnerable Electron Apps](docs/vulnhunt/electronapps.md)
 
-| Vulnerable | App Name                                       | EXE Name            | Version         | Discovery Credit                                         | 
-|------------|------------------------------------------------|---------------------|-----------------|----------------------------------------------------------|
-| ✅         | Microsoft Teams                                | `Teams.exe`         | `1.7.00.13456`  | Andrew Kisliakov & [mr.d0x](https://twitter.com/@mrd0x) |
-| ✅         | Cursor                                         | `cursor.exe`        | `0.48.7.0`      | [John Hammond](https://x.com/_JohnHammond) | 
-| ✅         | VS Code                                        | `code.exe`          |                 | [chompie1337](https://x.com/chompie1337) & [knavesec](https://x.com/knavesec)|
-| ✅         | Github Desktop                                 | `GithubDesktop.exe` | `3.4.6.0`       | [d_tranman](https://x.com/d_tranman) & [0xBoku](https://x.com/0xBoku) |
-| ✅         | [Postman](https://www.postman.com/downloads/)  | `Postman.exe`       |                 | [clod81](https://github.com/clod81) |
-| ✅         | [Obsidian](https://obsidian.md/download)       | `Obsidian.exe`      |                 | [clod81](https://github.com/clod81) |
-| ✅         | Joplin                                         | `Joplin.exe`        |                 | [0xAnom4ly](https://github.com/0xAnom4ly) |
-| ✅         | Discord                                        | `Discord.exe`       |                 | [clod81](https://github.com/clod81) |
-| ✅         | [Windsurf](https://windsurf.com/download)      | `Windsurf.exe`      |                 | [nero22k](https://github.com/Nero22k) |
-| ❌         | 1Password                                      | `1Password.exe`     |                 |               |
-| ❌         | Signal                                         | `Signal.exe`        |                 |               |
-| ❌         | Slack                                          | `slack.exe`         |                 |               |
+| Vulnerable | App Name                                              | EXE Name            | Version         | Discovery Credit                                                             | 
+|------------|-------------------------------------------------------|---------------------|-----------------|------------------------------------------------------------------------------|
+| ✅         | Microsoft Teams                                       | `Teams.exe`         | `1.7.00.13456`  | Andrew Kisliakov & [mr.d0x](https://twitter.com/@mrd0x)                      |
+| ✅         | Cursor                                                | `cursor.exe`        | `0.48.7.0`      | [John Hammond](https://x.com/_JohnHammond)                                   | 
+| ✅         | VS Code                                               | `code.exe`          |                 | [chompie1337](https://x.com/chompie1337) & [knavesec](https://x.com/knavesec)|
+| ✅         | Github Desktop                                        | `GithubDesktop.exe` | `3.4.6.0`       | [d_tranman](https://x.com/d_tranman) & [0xBoku](https://x.com/0xBoku)        |
+| ✅         | [Postman](https://www.postman.com/downloads/)         | `Postman.exe`       |                 | [clod81](https://github.com/clod81)                                          |
+| ✅         | [Obsidian](https://obsidian.md/download)              | `Obsidian.exe`      |                 | [clod81](https://github.com/clod81)                                          |
+| ✅         | Joplin                                                | `Joplin.exe`        |                 | [0xAnom4ly](https://github.com/0xAnom4ly)                                    |
+| ✅         | Discord                                               | `Discord.exe`       |                 | [clod81](https://github.com/clod81)                                          |
+| ✅         | [Windsurf](https://windsurf.com/download)             | `Windsurf.exe`      |                 | [nero22k](https://github.com/Nero22k)                                        |
+| ✅         | [RingCentral](https://www.ringcentral.com/download)   | `RingCentral.exe`   |                 | [4y45u45c4](https://x.com/4y45u45c4)                                         |
+| ❌         | 1Password                                             | `1Password.exe`     |                 |                                                                              |
+| ❌         | Signal                                                | `Signal.exe`        |                 |                                                                              |
+| ❌         | Slack                                                 | `slack.exe`         |                 |                                                                              |
 
 
 ### Simple Instructions
@@ -240,6 +241,8 @@ I do not recommend compiling the agent and using it for operations. Agent compil
 - This [LOLBAS Teams](https://lolbas-project.github.io/lolbas/OtherMSBinaries/Teams/) entry covers detections for Electron application backdooring. The detection information has been copied below.  
 - IOC: `%LOCALAPPDATA%\Microsoft\Teams\current\app` directory created
 - IOC: `%LOCALAPPDATA%\Microsoft\Teams\current\app.asar` file created/modified by non-Teams installer/updater
+- [SIGMA rule](https://github.com/4y45u45c4/SIGMA/blob/main/loki_c2_channel_established_from_electron_app.yaml) to detect established Loki C2 from electron app
+
 
 # References || Acknowledgements || Offensive Electron Research 
 - [Dylan Tran (@d_tranman)](https://x.com/d_tranman)
