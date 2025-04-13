@@ -242,6 +242,7 @@ I do not recommend compiling the agent and using it for operations. Agent compil
 - IOC: `%LOCALAPPDATA%\Microsoft\Teams\current\app` directory created
 - IOC: `%LOCALAPPDATA%\Microsoft\Teams\current\app.asar` file created/modified by non-Teams installer/updater
 - [SIGMA rule](https://github.com/4y45u45c4/SIGMA/blob/main/loki_c2_channel_established_from_electron_app.yaml) to detect established Loki C2 from electron app
+- [SIGMA rule](https://github.com/4y45u45c4/SIGMA/blob/main/hijack_of_electron_app_to_load_C2_framework.yaml) to detect hijacking of Electron's app folder (Teams, VS Code, RingCentral, Postman) to load C2 framework 
 
 
 # References || Acknowledgements || Offensive Electron Research 
