@@ -110,6 +110,7 @@ First you need to identify a vulnerable Electron application which does not do A
 | ✅         | Joplin                                                | `Joplin.exe`        |                 | [0xAnom4ly](https://github.com/0xAnom4ly)                                    |
 | ✅         | Discord                                               | `Discord.exe`       |                 | [clod81](https://github.com/clod81)                                          |
 | ✅         | [Windsurf](https://windsurf.com/download)             | `Windsurf.exe`      |                 | [nero22k](https://github.com/Nero22k)                                        |
+| ✅         | [Figma](https://www.figma.com/downloads/)             | `Figma.exe`      |                 | [WaterBucket](https://x.com/DharaniSanjaiy)
 | ✅         | [RingCentral](https://www.ringcentral.com/download)   | `RingCentral.exe`   |                 | [4y45u45c4](https://x.com/4y45u45c4)                                         |
 | ❌         | 1Password                                             | `1Password.exe`     |                 |                                                                              |
 | ❌         | Signal                                                | `Signal.exe`        |                 |                                                                              |
