@@ -111,6 +111,9 @@ First you need to identify a vulnerable Electron application which does not do A
 | ✅         | Discord                                               | `Discord.exe`       |                 | [clod81](https://github.com/clod81)                                          |
 | ✅         | [Windsurf](https://windsurf.com/download)             | `Windsurf.exe`      |                 | [nero22k](https://github.com/Nero22k)                                        |
 | ✅         | [RingCentral](https://www.ringcentral.com/download)   | `RingCentral.exe`   |                 | [4y45u45c4](https://x.com/4y45u45c4)                                         |
+| ✅         | [阿里云盘](https://www.alipan.com/)                    | `aDrive`            | `6.8.6`  | [Adnnlnistrator](https://github.com/Adnnlnistrator)|
+| ✅         | [azuredatastudio](https://azure.microsoft.com/zh-cn/products/data-studio/)                     | `azuredatastudio.exe`            | `1.51.1`  | [Adnnlnistrator](https://github.com/Adnnlnistrator)|
+| ✅         | [atom](https://atom-editor.cc/)                    | `atom.exe`            | `1.60.0`  | [Adnnlnistrator](https://github.com/Adnnlnistrator)|
 | ❌         | 1Password                                             | `1Password.exe`     |                 |                                                                              |
 | ❌         | Signal                                                | `Signal.exe`        |                 |                                                                              |
 | ❌         | Slack                                                 | `slack.exe`         |                 |                                                                              |
