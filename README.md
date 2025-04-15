@@ -119,7 +119,8 @@ First you need to identify a vulnerable Electron application which does not do A
 | ✅         | [KeeWeb](https://keeweb.info/)                        | `KeeWeb.exe`        |                 | [j0hnZ3RA](https://github.com/j0hnZ3RA)                                      |
 | ✅         | [Wordpress](https://apps.wordpress.com/pt-br/d/windows/)| `Wordpress.com.exe`|                | [j0hnZ3RA](https://github.com/j0hnZ3RA)                                      |
 | ✅         | [Arduino IDE](https://www.arduino.cc/en/software/)    | `Arduino IDE.exe`   |                 | [j0hnZ3RA](https://github.com/j0hnZ3RA)                                      |
-| ✅         | [QRLWallet](https://www.theqrl.org/)                    | `QRLWallet.exe`            | `1.8.1`  | [OnlySmrtSumX](https://www.linkedin.com/in/onlysmrtsumx/) & [tideboss](https://www.linkedin.com/in/kursad-dev/)| 
+| ✅         | [QRLWallet](https://www.theqrl.org/)                    | `QRLWallet.exe`            | `1.8.1`  | [OnlySmrtSumX](https://www.linkedin.com/in/onlysmrtsumx/) & [tideboss](https://www.linkedin.com/in/kursad-dev/)|
+| ✅         | [DevHub](https://devhubapp.com/)                    | `DevHub.exe`            | `0.102.0`  | [ab4y98](https://github.com/Ab4y98)|
 | ❌         | 1Password                                             | `1Password.exe`     |                 |                                                                              |
 | ❌         | Signal                                                | `Signal.exe`        |                 |                                                                              |
 | ❌         | Slack                                                 | `slack.exe`         |                 |                                                                              |
