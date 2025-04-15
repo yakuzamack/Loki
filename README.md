@@ -117,6 +117,7 @@ First you need to identify a vulnerable Electron application which does not do A
 | ✅         | [atom](https://atom-editor.cc/)                    | `atom.exe`            | `1.60.0`  | [Adnnlnistrator](https://github.com/Adnnlnistrator)|
 | ✅         | [Bruno](https://www.usebruno.com)                    | `Bruno.exe`            | `2.1.0`  | Tyler Schultz |
 | ✅         | [KeeWeb](https://keeweb.info/)                        | `KeeWeb.exe`        |                 | [j0hnZ3RA](https://github.com/j0hnZ3RA)                                      |
+| ✅         | [Wordpress](https://apps.wordpress.com/pt-br/d/windows/)| `Wordpress.com.exe`|                | [j0hnZ3RA](https://github.com/j0hnZ3RA)                                      |
 | ❌         | 1Password                                             | `1Password.exe`     |                 |                                                                              |
 | ❌         | Signal                                                | `Signal.exe`        |                 |                                                                              |
 | ❌         | Slack                                                 | `slack.exe`         |                 |                                                                              |
