@@ -2,19 +2,51 @@ const { app, BrowserWindow, ipcMain, Menu, clipboard, shell, dialog } = require(
 const fs   = require('fs');  
 const path = require('path');
 const az   = require('./azure');
-const {Agent,Container} = require('./agent');
 const { getAppDataDir } = require('./common');
 const directories = getAppDataDir();
-let config = require(directories.configFilePath);
+global.config = require(directories.configFilePath);
 const agents = [];
 let metaContainer = config.metaContainer;
 let win;
 global.agentids           = [];
 global.agentwindows       = 0;
 global.agentWindowHandles = {}; // Store windows by agentID
+global.dashboardWindow    = null;
+global.agents             = [];
+
+class Container 
+{
+  constructor(name, key = {}, blobs = {}) 
+  {
+    this.name = null || name;
+    this.key = {} || key;
+    this.blobs = {} || blobs;
+  }
+
+  setName(name) {
+    this.name = name;
+  }
+  setKey(key) {
+    this.key = {
+      'key' : key.key,
+      'iv' : key.iv
+    };
+  }
+}
+
+class Agent 
+{
+  constructor(agentId, containerObject) 
+  {
+    this.agentid   = null || agentId;
+    this.container = null || containerObject;
+    this.BrowserWindow = null;
+  }
+
+}
 
 function createDashboardWindow() {
-    win = new BrowserWindow({
+    global.dashboardWindow = new BrowserWindow({
         width: 1792,
         height: 1037,
         webPreferences: {
@@ -23,15 +55,14 @@ function createDashboardWindow() {
           nodeIntegration: true, // Enable Node.js integration in the renderer process
         },
     });
-    win.loadFile('dashboard.html');
+    global.dashboardWindow.loadFile('dashboard.html');
     console.log('Main window created');
 }
 
-async function createContainerWindow(thisagent) {
-    let this_agent = JSON.parse(thisagent);
+async function createContainerWindow(thisagentid) {
     let exists = false;
     for (let i = 0; i < agents.length; i++) {
-      if (agents[i].agentid === this_agent.agentid)
+      if (agents[i].agentid === thisagentid)
       {
           console.log(`agent with agentid ${this_agent.agentid} already exists in agents[${i}]`);
           exists = true;
@@ -48,40 +79,33 @@ async function createContainerWindow(thisagent) {
               nodeIntegration: true, // Enable Node.js integration in the renderer process
             },
         });
-        const container_blobs = await az.getContainerBlobs(this_agent.containerid,config);
-        console.log(`${this_agent.containerid} container key blob : ${container_blobs['key']}`);
-        const container_key   = await az.getContainerAesKeys(this_agent.containerid,container_blobs['key'],config);
-        let containerObject   = new Container(this_agent.containerid,container_key,container_blobs); 
-        let agent             = new Agent(this_agent.agentid,containerObject); 
+        let thisAgent = global.agents.find(agent => agent.agentid === thisagentid);
+
+        let containerObject   = new Container(thisAgent.container,thisAgent.aes,thisAgent.blobs); 
+        let agent             = new Agent(thisAgent.agentid,containerObject); 
         agent.BrowserWindow   = containerWin;
         agents.push(agent);
-        global.agentWindowHandles[this_agent.agentid] = containerWin;
+        global.agentWindowHandles[thisAgent.agentid] = containerWin;
 
-        agent.container.blobs['key']     = container_blobs['key'];
-        agent.container.blobs['checkin'] = container_blobs['checkin'];
-        agent.container.blobs['in']      = container_blobs['in'];
-        agent.container.blobs['out']     = container_blobs['out'];
+        agent.container.blobs['key']     = thisAgent.blobs['key'];
+        agent.container.blobs['checkin'] = thisAgent.blobs['checkin'];
+        agent.container.blobs['in']      = thisAgent.blobs['in'];
+        agent.container.blobs['out']     = thisAgent.blobs['out'];
         for (const key in agent.container.blobs) {
             if (agent.container.blobs.hasOwnProperty(key)) {
                 console.log(`${key}: ${agent.container.blobs[key]}`);
             }
         }
-        agent.container.key['key'] = container_key['key'];
-        agent.container.key['iv']  = container_key['iv'];
+        agent.container.key['key'] = thisAgent.aes['key'];
+        agent.container.key['iv']  = thisAgent.aes['iv'];
 
-        let checkinData       = await az.checkinContainer(agent.container.name, agent.container.key, agent.container.blobs,config);
-        let agentObj          = JSON.parse(checkinData);
-        agentObj.agentid      = agent.agentid;
-        agentObj.containerid  = agent.container.name;
-        agentObj.key          = agent.container.key['key'];
-        agentObj.iv           = agent.container.key['iv'];
-        let startupdata       = JSON.stringify(agentObj);
+        let startupdata       = JSON.stringify(thisAgent);
 
         global.agentwindows++;
         containerWin.loadFile('agent-window.html').then(() => {
             containerWin.webContents.send('container-data', agent.container.name, agent.container.key, agent.container.blobs,startupdata);
         });
-        console.log(`Container window created for container: ${this_agent.containerid}`);
+        console.log(`Container window created for container: ${thisAgent.container}`);
         console.log(`Number of agent windows : ${global.agentwindows}`);
 
         containerWin.on('close', async (event) => {
@@ -107,11 +131,6 @@ async function createContainerWindow(thisagent) {
                 console.log(`${agentid} removed from the array.`);
                 global.agentids.pop(agentid);
             } 
-            // global.agentwindows    = 0;
-            // global.agentids.length = 0;
-            // agents.length   = 0;
-            //console.log(`IPC force-close : agentid : ${agentid}`);
-            //containerWin.destroy(); // Force close after confirmation
             const agentWindow = global.agentWindowHandles[agentid];
             if (agentWindow) {
                 agentWindow.destroy(); // Force close after confirmation
@@ -134,7 +153,7 @@ async function createExplorerWindow(thisagent) {
         webPreferences: {
             contextIsolation: false,
             enableRemoteModule: true,
-            nodeIntegration: true, // Enable Node.js integration in the renderer process
+            nodeIntegration: true, 
         },
     });
     console.log(`Agent Data : ${JSON.stringify(this_agent)}`);
@@ -167,9 +186,6 @@ async function createExplorerWindow(thisagent) {
     ExplorerWin.loadFile('explorer.html').then(() => {
             ExplorerWin.webContents.send('container-data', agent.container.name, agent.container.key, agent.container.blobs,startupdata);
     });
-    //     console.log(`Container window created for container: ${this_agent.containerid}`);
-    //     console.log(`Number of agent windows : ${global.agentwindows}`);
-
     ExplorerWin.on('close', async (event) => {
     });
 }
@@ -302,43 +318,38 @@ ipcMain.handle('preload-agents', async () => {
 
 // Fetch container data and send it to the renderer process
 ipcMain.handle('get-containers', async () => {
-    let blobs = await az.listBlobsInContainer(metaContainer,config);
+    let blobs = await az.updateDashboardTable(metaContainer,config);
     //console.log(`IPC get-containers : agent checkin blobs : ${blobs}`);
     return blobs;
 });
 
 ipcMain.handle('get-agent-checkin', async (event, agentid) => {
-    let agentcheckin = await az.returnAgentCheckinInfo(metaContainer,agentid,config);
-    return agentcheckin;
+    let thisAgent = global.agents.find(agent => agent.agentid === agentid); 
+    let agentCheckin = await az.returnAgentCheckinInfo(thisAgent.container,thisAgent.blobs['in']);
+    thisAgent.checkin = agentCheckin;
+    return JSON.stringify(thisAgent);
 });
 
-ipcMain.on('open-container-window', async (event, thisagent) => {
-    console.log(`IPC Open Container Window : ${thisagent}`);
+ipcMain.on('open-container-window', async (event, thisagentid) => {
+    console.log(`IPC Open Container Window : ${thisagentid}`);
 
-    let this_agent = JSON.parse(thisagent);
+    // let this_agent = JSON.parse(thisagent);
     let window_exists = false;
     if (global.agentwindows === 0)
     {
         global.agentids.length = 0;
     }
 
-    console.log(`agentids[] : ${global.agentids}`);
-    if (!global.agentids.includes(this_agent.agentid)) {
-      global.agentids.push(this_agent.agentid);
-        console.log(`${this_agent.agentid} added to the array.`);
+    console.log(`agentids[] : ${thisagentid}`);
+    if (!global.agentids.includes(thisagentid)) {
+      global.agentids.push(thisagentid);
+        console.log(`${thisagentid} added to the array.`);
     } else {
-        console.log(`${this_agent.agentid} already exists.`);
+        console.log(`${thisagentid} already exists.`);
         window_exists = true;
     }
-  
-    // console.log(`agentwindows : ${agentwindows}`);
-    //console.log(`agents : ${JSON.stringify(agents)}`);
-    // for (let i = 0; i < global.agentwindows; i++) {
-    // console.log(`agent[${i}] : ${JSON.stringify(agents[i])}`);
-    // console.log(`agent[${i}].agentid : ${agents[i].agentid}`);
-    // console.log(`this_agent.agentid   : ${this_agent.agentid}`);
-    const agentWindow = global.agentWindowHandles[this_agent.agentid];
-    if (global.agentWindowHandles[this_agent.agentid] !== undefined) 
+    const agentWindow = global.agentWindowHandles[thisagentid];
+    if (global.agentWindowHandles[thisagentid] !== undefined) 
     {
         window_exists = true;
         console.log(`window exists`);
@@ -351,8 +362,7 @@ ipcMain.on('open-container-window', async (event, thisagent) => {
     // }
     if (window_exists == false)
     {
-        console.log(`Opening container window for container: ${this_agent.containerid}`);
-        setTimeout(() => { createContainerWindow(thisagent) }, 1000); // Simulate some delay before closing
+        setTimeout(() => { createContainerWindow(thisagentid) }, 1000); // Simulate some delay before closing
     }
 });
 

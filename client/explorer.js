@@ -285,8 +285,8 @@ ipcRenderer.on('command-output', (event, output) => {
                 if (!output.endsWith("/")) {
                     output += "/";
                 }
-                //document.getElementById("dirPath").value = output;
-                document.getElementById("dirPath").value = "C:/";
+                document.getElementById("dirPath").value = output;
+                //document.getElementById("dirPath").value = "C:/";
                 pwd = output;
                 listFiles();
             } 

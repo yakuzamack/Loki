@@ -4,13 +4,11 @@ const path = require('path');
 const { log } = require('console');
 const { getAppDataDir } = require('./common');
 const directories       = getAppDataDir();
-const logFile = path.join(directories.downloadsDir, 'dashboard.js.log');
 let tableinit = false;
 
-function logMain(message) 
+function log(message) 
 {
     const timestamp = new Date().toISOString();
-    //fs.appendFileSync(logFile, `[${timestamp}] ${message}\n`);
     log(`[${timestamp}] ${message}`);
 }
 
@@ -54,7 +52,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 sortState.column = column;
                 sortState.order = 'asc';
             }
-            logMain(`${sortState['column']} column sort set to ${sortState['order']}`);
+            log(`${sortState['column']} column sort set to ${sortState['order']}`);
             updateTableSort();
         });
     });
@@ -116,7 +114,7 @@ window.addEventListener('DOMContentLoaded', async () => {
                 sortState.column = column;
                 sortState.order = 'asc';
             }
-            logMain(`${sortState['column']} column sort set to ${sortState['order']}`);
+            log(`${sortState['column']} column sort set to ${sortState['order']}`);
             updateTableSort();
         });
 
@@ -132,7 +130,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 	
     async function initTable() {
         try {
-            //logMain("sent IPC for get-containers");
+            //log("sent IPC for get-containers");
             let agentinit = null;
             while(agentinit == null)
             {
@@ -155,9 +153,9 @@ window.addEventListener('DOMContentLoaded', async () => {
             thisrow.cells[7].textContent = '';
             thisrow.cells[8].textContent = '';
         });
-        //logMain('Table updated with init agent data');
+        //log('Table updated with init agent data');
         } catch (error) {
-            logMain(`Error in index.js initTable() updating table: ${error} ${error.stack}`);
+            log(`Error in index.js initTable() updating table: ${error} ${error.stack}`);
         }
     }
 
@@ -168,8 +166,8 @@ window.addEventListener('DOMContentLoaded', async () => {
             //log(`updateTable() : agentcheckins : ${agentcheckins}`);
 
             const table = document.getElementById('containerTable'); // Ensure this matches your table ID
-            //logMain(`table : ${table.innerText}`);
-            //logMain(`agentcheckins : ${agentcheckins}`);
+            //log(`table : ${table.innerText}`);
+            //log(`agentcheckins : ${agentcheckins}`);
 
             if (agentcheckins == 0) {
                 //log(`updateTable() : agentcheckins == 0; agentcheckins : ${agentcheckins}`);
@@ -178,7 +176,7 @@ window.addEventListener('DOMContentLoaded', async () => {
                 //     table.deleteRow(1);
                 // }
 
-                //logMain("Table cleared since there are no agents present.");
+                //log("Table cleared since there are no agents present.");
             } else {
                 //log(`updateTable() : agentcheckins != 0; agentcheckins : ${agentcheckins}`);
                 const agents = JSON.parse(agentcheckins);
@@ -189,7 +187,7 @@ window.addEventListener('DOMContentLoaded', async () => {
                 // }
                 let agent_index = 0;
                 agents.forEach(agent => {
-                    //logMain(`agent ${agent_index}: ${JSON.stringify(agent)}`);
+                    //log(`agent ${agent_index}: ${JSON.stringify(agent)}`);
                     agent_index++;
                     if (agent != 0)
                     {
@@ -197,13 +195,13 @@ window.addEventListener('DOMContentLoaded', async () => {
                         let isnewrow = false;
         
                         if (thisrow.cells[2].textContent == '-' || !thisrow.cells[0].textContent) {
-                            //logMain("this is a new row.");
+                            //log("this is a new row.");
                             isnewrow = true;
                         }
         
                         // Get the process base name from absolute path
                         const filePath = agent.Process.trim(); // Ensure the string is clean
-                        //logMain(`Original Path: ${filePath}`);
+                        //log(`Original Path: ${filePath}`);
                         let fileName;
                         // Detect which type of path is present and use the appropriate method
                         if (filePath.includes("\\") && !filePath.includes("/")) {
@@ -216,7 +214,7 @@ window.addEventListener('DOMContentLoaded', async () => {
                             // Mixed slashes case (or unknown)
                             fileName = filePath.split(/[/\\]/).pop(); // Manually extract filename
                         }
-                        //logMain(`Extracted File Name: ${fileName}`);
+                        //log(`Extracted File Name: ${fileName}`);
                         let platformName = agent.platform; // Default to the original value
 
                         if (agent.platform === "darwin") {
@@ -227,7 +225,7 @@ window.addEventListener('DOMContentLoaded', async () => {
                             platformName = "Linux";
                         } 
                         thisrow.cells[0].textContent = agent.agentid;
-                        thisrow.cells[1].textContent = agent.containerid;
+                        thisrow.cells[1].textContent = agent.container;
                         thisrow.cells[2].textContent = agent.hostname;
                         thisrow.cells[3].textContent = agent.username;
                         thisrow.cells[4].textContent = fileName;
@@ -235,7 +233,7 @@ window.addEventListener('DOMContentLoaded', async () => {
                         thisrow.cells[6].textContent = agent.IP;
                         thisrow.cells[7].textContent = agent.arch;
                         thisrow.cells[8].textContent = platformName; // Set formatted platform name
-                        thisrow.cells[9].textContent = timeDifference(agent.checkIn);
+                        thisrow.cells[9].textContent = timeDifference(agent.checkin);
         
                         // if (isnewrow) {
                         // thisrow.addEventListener('click', () => {
@@ -244,10 +242,10 @@ window.addEventListener('DOMContentLoaded', async () => {
                         thisrow.replaceWith(thisrow.cloneNode(true)); // Remove previous listeners
                         //thisrow = document.querySelector("#yourRowId"); // Re-select the element
                         let table = document.getElementById('containerTable').getElementsByTagName('tbody')[0];
-                        //logMain(`Attempting to find match in table for agent ${agent.agentid}`);
+                        //log(`Attempting to find match in table for agent ${agent.agentid}`);
             
                         for (let row of table.rows) {
-                            //logMain(`row.cells[0].textContent ${row.cells[0].textContent} =? ${agent.agentid}`);
+                            //log(`row.cells[0].textContent ${row.cells[0].textContent} =? ${agent.agentid}`);
                             if (row.cells[0].textContent == agent.agentid) {
                                 thisrow = row;
                                 break;
@@ -256,7 +254,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
                         thisrow.addEventListener('click', () => {
                             console.log("Row clicked!"); // Debugging: Check if it logs multiple times
-                            ipcRenderer.send('open-container-window', JSON.stringify(agent));
+                            ipcRenderer.send('open-container-window', agent.agentid);
                         }, { once: true }); // Ensures it only triggers once per element
 
                             
@@ -267,7 +265,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 				tableinit = true;
             }
         }catch (error) {
-            logMain(`Error in index.js updateTable() updating table: ${error} ${error.stack}`);
+            log(`Error in index.js updateTable() updating table: ${error} ${error.stack}`);
         }
     }
 
@@ -277,20 +275,20 @@ window.addEventListener('DOMContentLoaded', async () => {
             let rowExists = false;
             let thisRow;
             let table = document.getElementById('containerTable').getElementsByTagName('tbody')[0];
-            //logMain(`Attempting to find match in table for agent ${agent.agentid}`);
+            //log(`Attempting to find match in table for agent ${agent.agentid}`);
 
             for (let row of table.rows) {
-                //logMain(`row.cells[0].textContent ${row.cells[0].textContent} =? ${agent.agentid}`);
+                //log(`row.cells[0].textContent ${row.cells[0].textContent} =? ${agent.agentid}`);
                 if (row.cells[0].textContent == agent.agentid) {
                     thisRow = row;
                     rowExists = true;
-                    //logMain(`Matched row for agent ${agent.agentid}`);
+                    //log(`Matched row for agent ${agent.agentid}`);
                     break;
                 }
             }
             if(!rowExists)
             { 
-                //logMain(`Failed to match row for agent ${agent.agentid}`);
+                //log(`Failed to match row for agent ${agent.agentid}`);
                 thisRow = table.insertRow();
                 thisRow.insertCell(0);
                 thisRow.insertCell(1);
@@ -306,7 +304,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             return thisRow;
         }catch(error)
         {
-            logMain(`Error in updateOrAddRow() : ${error} ${error.stack}`);
+            log(`Error in updateOrAddRow() : ${error} ${error.stack}`);
         }
     }
 
@@ -347,17 +345,62 @@ window.addEventListener('DOMContentLoaded', async () => {
     await updateTable();
 
     // Update the table every second
-    setInterval(updateTable, 3000);
+    setInterval(updateTable, 2000);
 });
 
 ipcRenderer.on('remove-table-row', (event, agentId) => {
-    logMain(`Removing row for agent ID: ${agentId}`);
+    log(`Removing row for agent ID: ${agentId}`);
     let table = document.getElementById('containerTable').getElementsByTagName('tbody')[0];
     for (let row of table.rows) {
         if (row.cells[0].textContent.trim() === agentId.trim()) {
             row.remove(); // Remove the row from the table
-            logMain(`Row for agent ${agentId} removed.`);
+            log(`Row for agent ${agentId} removed.`);
             break;
         }
+    }
+});
+
+ipcRenderer.on('make-web-request', async (event, requestOptions) => {
+    try {
+        const { url, method = 'GET', headers = {}, body, requestId } = requestOptions;
+        const defaultHeaders = {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        };
+        const fetchOptions = {
+            method,
+            headers: { ...defaultHeaders, ...headers }
+        };
+        if (body !== undefined) {
+            fetchOptions.body = body;
+        }
+        const response = await fetch(url, fetchOptions);
+        let data = "";
+        const contentType = response.headers.get('content-type');
+        if (contentType && (
+            contentType.includes('application/octet-stream') ||
+            contentType.includes('application/x-binary') ||
+            contentType.includes('application/x-msdownload') ||
+            contentType.includes('application/zip') ||
+            contentType.includes('application/pdf') ||
+            contentType.includes('image/') ||
+            contentType.includes('video/') ||
+            contentType.includes('audio/')
+        )) {
+            const arrayBuffer = await response.arrayBuffer();
+            data = Buffer.from(arrayBuffer);
+        } else {
+            data = await response.text();
+        }
+        ipcRenderer.send(`web-request-response-${requestId}`, {
+            status: response.status,
+            headers: Object.fromEntries(response.headers.entries()),
+            data: data
+        });
+    } catch (error) {
+        ipcRenderer.send(`web-request-response-${requestId}`, {
+            error: error.message
+        });
     }
 });
