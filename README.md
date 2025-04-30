@@ -124,6 +124,7 @@ First you need to identify a vulnerable Electron application which does not do A
 | ✅         | [Asana](https://asana.com/)                           | `Asana.exe`           | `2.3.0`       | [syro](https://github.com/0xsyr0)                                            |
 | ✅         | [Insomnia](https://insomnia.rest/)                    | `insomnia-11.0.2.exe` | `11.0.2`      | [syro](https://github.com/0xsyr0)                                            |
 | ✅         | [Ferdium](https://ferdium.org/)                    | `Ferdium.exe` | `7.0.1`      | [pir4cy](https://github.com/pir4cy)                                            |
+| ✅         | [Franz](https://meetfranz.com/)                    | `Franz.exe` | `5.11.0`      | [pir4cy](https://github.com/pir4cy)                                            |
 | ❌         | 1Password                                             | `1Password.exe`     |                 |                                                                              |
 | ❌         | Signal                                                | `Signal.exe`        |                 |                                                                              |
 | ❌         | Slack                                                 | `slack.exe`         |                 |                                                                              |
