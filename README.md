@@ -2,8 +2,8 @@
 Loki is a stage-1 command and control (C2) framework written in Node.js, built to script-jack vulnerable Electron apps _[MITRE ATT&CK T1218.015](https://attack.mitre.org/techniques/T1218/015/)_. Developed for red team operations, Loki enables evasion of security software and bypasses application controls by exploiting trusted, signed Electron apps.
 
 Script-jacking hijacks the execution flow of an Electron app by modifying JavaScript files loaded in at runtime with arbitrary Node.js code. This technique can be leveraged to:
-- __Backdoor the Electron app__
-- __Hollow out the Electron app__
+- __Backdoor Electron app__
+- __Hollow Electron app__
 - Chain execution to another process
 
 _While several tools already address leveraging script-jacking to chain execution to another process, Loki is the first to enable backdooring and hollowing of signed Electron apps without invalidating their code signing signature._
@@ -72,6 +72,7 @@ _All agent commands are written in native Node.JS and do not require additional 
 | `scan`      | Perform TCP network scan across CIDR range with selected ports             |
 | `dns`       | DNS lookup. Leverages systems DNS configuration                            |
 | `set`       | Set the Node load paths for assembly node and scexec nodes                 |  
+| `bof`       | Execute a COFF file and return output                                      |  
 
 #### `Set` - Loading Nodes from Application Control Exclusion Paths
 - If there are application control rules preventing library loads for the node files you can use the `set` command to change the load paths for `assembly.node` and `scexec.node`. 
@@ -186,7 +187,6 @@ bobby$ node obfuscateAgent.js
 - Click the agent from the dashboard table to open the agent window
 - Test to ensure Loki works properly
 
-
 ## Backdooring Electron Apps and Keeping the real Application Working as Normal
 The most straightforward way to use Loki is to replace the files in `{ELECTRONAPP}/resources/app/` with the Loki files. This hollows out the app, meaning the app won't function normally -- Loki replaced its functionality.  
 
@@ -282,7 +282,5 @@ I do not recommend compiling the agent and using it for operations. Agent compil
 - [Pavel Tsakalidis](https://x.com/sadreck)
   - [BEEMKA - Electron Exploitation Toolkit](https://github.com/ctxis/beemka)
 
-
 ## License
 This project is licensed under the Business Source License 1.1. Non-commercial use is permitted under the terms of the license. Commercial use requires the author's explicit permission. On April 3, 2030, this license will convert to Apache 2.0. See [LICENSE](./LICENSE) for full details.
-

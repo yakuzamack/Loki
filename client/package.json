@@ -1,6 +1,6 @@
 {
-  "name": "loki-c2-client",
-  "version": "1.0.0",
+  "name": "loki",
+  "version": "2.0.0",
   "main": "./kernel.js",
   "scripts": {
     "start": "electron .",
@@ -8,18 +8,18 @@
     "pack": "electron-builder --dir",
     "dist": "electron-builder"
   },
-  "keywords": [],
+  "keywords": ["C2","Electron","Red Team","adversary simulation","https://x.com/0xBoku","https://www.linkedin.com/in/bobby-cooke/"],
   "author": "Bobby Cooke",
   "homepage": "https://0xBoku.com",
-  "license": "MIT",
-  "description": "",
+  "license": "BSL",
+  "description": "Node.js Command & Control for Script-Jacking Vulnerable Electron Applications",
   "devDependencies": {
     "electron": "^31.1.0",
     "electron-builder": "^25.1.8"
   },
   "build": {
-    "appId": "com.0xBoku.Loki-C2-Client",
-    "productName": "Loki C2 Client",
+    "appId": "com.0xBoku.Loki",
+    "productName": "Loki",
     "copyright": "© 2025 Bobby Cooke",
     "asar": true,
     "files": [
@@ -33,16 +33,12 @@
     "mac": {
       "icon": "assets/mac/icon.icns",
       "target": [
-        "dmg",
         "zip"
       ]
     },
     "win": {
       "icon": "assets/win/icon.ico",
       "target": [
-        "msi",
-        "portable",
-        "nsis",
         "zip"
       ]
     },

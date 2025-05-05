@@ -1,12 +1,9 @@
 const { ipcRenderer } = require('electron');
 const path = require('path');
-//const fs = require('fs'); // Use synchronous fs module for createWriteStream
 const { log } = require('console');
-const { getAppDataDir } = require('./common');
-const directories       = getAppDataDir();
 let tableinit = false;
 
-function log(message) 
+function logMain(message) 
 {
     const timestamp = new Date().toISOString();
     log(`[${timestamp}] ${message}`);
@@ -52,15 +49,13 @@ window.addEventListener('DOMContentLoaded', () => {
                 sortState.column = column;
                 sortState.order = 'asc';
             }
-            log(`${sortState['column']} column sort set to ${sortState['order']}`);
+            logMain(`${sortState['column']} column sort set to ${sortState['order']}`);
             updateTableSort();
         });
     });
 
     const table = document.getElementById('containerTable');
     if (!table) return;
-
-    // **Fix: Remove existing event listener before adding**
     table.removeEventListener('contextmenu', handleContextMenu);
     table.addEventListener('contextmenu', handleContextMenu);
 });
@@ -94,7 +89,6 @@ function handleContextMenu(event) {
 
 
 window.addEventListener('DOMContentLoaded', async () => {
-    //const containerTable = document.getElementById('containerTable').getElementsByTagName('tbody')[0];
     let sortState = {
         column: null,
         order: 'none' // 'asc', 'desc', 'none'
@@ -114,7 +108,7 @@ window.addEventListener('DOMContentLoaded', async () => {
                 sortState.column = column;
                 sortState.order = 'asc';
             }
-            log(`${sortState['column']} column sort set to ${sortState['order']}`);
+            logMain(`${sortState['column']} column sort set to ${sortState['order']}`);
             updateTableSort();
         });
 
@@ -123,71 +117,47 @@ window.addEventListener('DOMContentLoaded', async () => {
     const table = document.getElementById('containerTable');
     if (!table) return;
 
-    // **Fix: Remove existing event listener before adding**
     table.removeEventListener('contextmenu', handleContextMenu);
     log("Adding event listener context menu");
 	table.addEventListener('contextmenu', handleContextMenu);
 	
-    async function initTable() {
-        try {
-            //log("sent IPC for get-containers");
-            let agentinit = null;
-            while(agentinit == null)
-            {
-                agentinit = await ipcRenderer.invoke('preload-agents');
-                await new Promise(resolve => setTimeout(resolve, 3000));
-            }
+    // async function initTable() {
+    //     try {
+    //         let agentinit = null;
+    //         while(agentinit == null)
+    //         {
+    //             agentinit = await ipcRenderer.invoke('preload-agents');
+    //             await new Promise(resolve => setTimeout(resolve, 3000));
+    //         }
 
-            //console.log(`agentinit : ${agentinit}`);
-            let agents = JSON.parse(agentinit);
+    //         let agents = JSON.parse(agentinit);
 
-            agents.forEach(agent => {
-            let thisrow = updateOrAddRow(agent);
-            thisrow.cells[0].textContent = agent.agentid;
-            thisrow.cells[1].textContent = agent.containerid;
-            thisrow.cells[2].textContent = '';
-            thisrow.cells[3].textContent = '';
-            thisrow.cells[4].textContent = '';
-            thisrow.cells[5].textContent = '';
-            thisrow.cells[6].textContent = '';
-            thisrow.cells[7].textContent = '';
-            thisrow.cells[8].textContent = '';
-        });
-        //log('Table updated with init agent data');
-        } catch (error) {
-            log(`Error in index.js initTable() updating table: ${error} ${error.stack}`);
-        }
-    }
+    //         agents.forEach(agent => {
+    //         let thisrow = updateOrAddRow(agent);
+    //         thisrow.cells[0].textContent = agent.agentid;
+    //         thisrow.cells[1].textContent = agent.containerid;
+    //         thisrow.cells[2].textContent = '';
+    //         thisrow.cells[3].textContent = '';
+    //         thisrow.cells[4].textContent = '';
+    //         thisrow.cells[5].textContent = '';
+    //         thisrow.cells[6].textContent = '';
+    //         thisrow.cells[7].textContent = '';
+    //         thisrow.cells[8].textContent = '';
+    //     });
+    //     } catch (error) {
+    //         logMain(`Error in index.js initTable() updating table: ${error} ${error.stack}`);
+    //     }
+    // }
 
     async function updateTable() {
         try {
             let agentcheckins;
             agentcheckins = await ipcRenderer.invoke('get-containers');
-            //log(`updateTable() : agentcheckins : ${agentcheckins}`);
-
             const table = document.getElementById('containerTable'); // Ensure this matches your table ID
-            //log(`table : ${table.innerText}`);
-            //log(`agentcheckins : ${agentcheckins}`);
-
-            if (agentcheckins == 0) {
-                //log(`updateTable() : agentcheckins == 0; agentcheckins : ${agentcheckins}`);
-                // Clear all rows from the table
-                // while (table.rows.length > 1) { // Keeps the header row if it exists
-                //     table.deleteRow(1);
-                // }
-
-                //log("Table cleared since there are no agents present.");
-            } else {
-                //log(`updateTable() : agentcheckins != 0; agentcheckins : ${agentcheckins}`);
+            if (agentcheckins != 0) {
                 const agents = JSON.parse(agentcheckins);
-
-                // Clear the existing rows before updating
-                // while (table.rows.length > 1) {
-                //     table.deleteRow(1);
-                // }
                 let agent_index = 0;
                 agents.forEach(agent => {
-                    //log(`agent ${agent_index}: ${JSON.stringify(agent)}`);
                     agent_index++;
                     if (agent != 0)
                     {
@@ -195,27 +165,18 @@ window.addEventListener('DOMContentLoaded', async () => {
                         let isnewrow = false;
         
                         if (thisrow.cells[2].textContent == '-' || !thisrow.cells[0].textContent) {
-                            //log("this is a new row.");
                             isnewrow = true;
                         }
-        
-                        // Get the process base name from absolute path
-                        const filePath = agent.Process.trim(); // Ensure the string is clean
-                        //log(`Original Path: ${filePath}`);
+                        const filePath = agent.Process.trim();
                         let fileName;
-                        // Detect which type of path is present and use the appropriate method
                         if (filePath.includes("\\") && !filePath.includes("/")) {
-                            // Windows-style path (only backslashes)
                             fileName = path.win32.basename(filePath);
                         } else if (filePath.includes("/") && !filePath.includes("\\")) {
-                            // macOS/Linux-style path (only forward slashes)
                             fileName = path.posix.basename(filePath);
                         } else {
-                            // Mixed slashes case (or unknown)
-                            fileName = filePath.split(/[/\\]/).pop(); // Manually extract filename
+                            fileName = filePath.split(/[/\\]/).pop();
                         }
-                        //log(`Extracted File Name: ${fileName}`);
-                        let platformName = agent.platform; // Default to the original value
+                        let platformName = agent.platform;
 
                         if (agent.platform === "darwin") {
                             platformName = "macOS";
@@ -234,38 +195,25 @@ window.addEventListener('DOMContentLoaded', async () => {
                         thisrow.cells[7].textContent = agent.arch;
                         thisrow.cells[8].textContent = platformName; // Set formatted platform name
                         thisrow.cells[9].textContent = timeDifference(agent.checkin);
-        
-                        // if (isnewrow) {
-                        // thisrow.addEventListener('click', () => {
-                        //     ipcRenderer.send('open-container-window', JSON.stringify(agent));
-                        // }, { once: true });
                         thisrow.replaceWith(thisrow.cloneNode(true)); // Remove previous listeners
-                        //thisrow = document.querySelector("#yourRowId"); // Re-select the element
                         let table = document.getElementById('containerTable').getElementsByTagName('tbody')[0];
-                        //log(`Attempting to find match in table for agent ${agent.agentid}`);
-            
                         for (let row of table.rows) {
-                            //log(`row.cells[0].textContent ${row.cells[0].textContent} =? ${agent.agentid}`);
                             if (row.cells[0].textContent == agent.agentid) {
                                 thisrow = row;
                                 break;
                             }
                         }
-
                         thisrow.addEventListener('click', () => {
                             console.log("Row clicked!"); // Debugging: Check if it logs multiple times
                             ipcRenderer.send('open-container-window', agent.agentid);
                         }, { once: true }); // Ensures it only triggers once per element
-
-                            
-                        // }
                     }
                 });
                 updateTableSort();
 				tableinit = true;
             }
         }catch (error) {
-            log(`Error in index.js updateTable() updating table: ${error} ${error.stack}`);
+            logMain(`Error in index.js updateTable() updating table: ${error} ${error.stack}`);
         }
     }
 
@@ -275,20 +223,20 @@ window.addEventListener('DOMContentLoaded', async () => {
             let rowExists = false;
             let thisRow;
             let table = document.getElementById('containerTable').getElementsByTagName('tbody')[0];
-            //log(`Attempting to find match in table for agent ${agent.agentid}`);
+            //logMain(`Attempting to find match in table for agent ${agent.agentid}`);
 
             for (let row of table.rows) {
-                //log(`row.cells[0].textContent ${row.cells[0].textContent} =? ${agent.agentid}`);
+                //logMain(`row.cells[0].textContent ${row.cells[0].textContent} =? ${agent.agentid}`);
                 if (row.cells[0].textContent == agent.agentid) {
                     thisRow = row;
                     rowExists = true;
-                    //log(`Matched row for agent ${agent.agentid}`);
+                    //logMain(`Matched row for agent ${agent.agentid}`);
                     break;
                 }
             }
             if(!rowExists)
             { 
-                //log(`Failed to match row for agent ${agent.agentid}`);
+                //logMain(`Failed to match row for agent ${agent.agentid}`);
                 thisRow = table.insertRow();
                 thisRow.insertCell(0);
                 thisRow.insertCell(1);
@@ -304,7 +252,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             return thisRow;
         }catch(error)
         {
-            log(`Error in updateOrAddRow() : ${error} ${error.stack}`);
+            logMain(`Error in updateOrAddRow() : ${error} ${error.stack}`);
         }
     }
 
@@ -341,20 +289,20 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Initial table update
-    await initTable();
+//    await initTable();
     await updateTable();
 
     // Update the table every second
-    setInterval(updateTable, 2000);
+    setInterval(updateTable, 1000);
 });
 
 ipcRenderer.on('remove-table-row', (event, agentId) => {
-    log(`Removing row for agent ID: ${agentId}`);
+    logMain(`Removing row for agent ID: ${agentId}`);
     let table = document.getElementById('containerTable').getElementsByTagName('tbody')[0];
     for (let row of table.rows) {
         if (row.cells[0].textContent.trim() === agentId.trim()) {
             row.remove(); // Remove the row from the table
-            log(`Row for agent ${agentId} removed.`);
+            logMain(`Row for agent ${agentId} removed.`);
             break;
         }
     }

