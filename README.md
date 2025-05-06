@@ -127,6 +127,7 @@ First you need to identify a vulnerable Electron application which does not do A
 | ✅         | [Ferdium](https://ferdium.org/)                       | `Ferdium.exe`       | `7.0.1`         | [pir4cy](https://github.com/pir4cy)                                            |
 | ✅         | [Franz](https://meetfranz.com/)                       | `Franz.exe`         | `5.11.0`        | [pir4cy](https://github.com/pir4cy)                                            |
 | ✅         | [TIDAL](https://tidal.com/)                           | `TIDAL.exe`         |                 | [pir4cy](https://github.com/pir4cy)                                            |
+| ✅         | [FACEIT](https://faceit.com/)                          | `FACEIT.exe`         | `2.1.10`                | [icheernoom](https://x.com/icheernoom)                               |
 | ❌         | 1Password                                             | `1Password.exe`     |                 |                                                                              |
 | ❌         | Signal                                                | `Signal.exe`        |                 |                                                                              |
 | ❌         | Slack                                                 | `slack.exe`         |                 |                                                                              |
