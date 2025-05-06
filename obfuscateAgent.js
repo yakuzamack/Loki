@@ -85,8 +85,8 @@ const AssemblySrcPath           = path.join(sourceDir, 'assembly.node');
 const AssemblyDstPath           = path.join(outputDir, 'assembly.node');
 const scexecSrcPath             = path.join(sourceDir, 'scexec.node');
 const scexecDstPath             = path.join(outputDir, 'scexec.node');
-const CoffLoaderSrcPath         = path.join(sourceDir, 'CoffLoader.node');
-const CoffLoaderDstPath         = path.join(outputDir, 'CoffLoader.node');
+const CoffLoaderSrcPath         = path.join(sourceDir, 'COFFLoader.node');
+const CoffLoaderDstPath         = path.join(outputDir, 'COFFLoader.node');
 const cleanupTargets            = [
     path.join(__dirname, 'node_modules'),
     path.join(__dirname, 'package.json'),
