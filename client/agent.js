@@ -84,10 +84,10 @@ const commandDetails = [
     { name: "assembly", help: "Execute a .NET assembly and get command output\r\n\tassembly [local_path] [arg1] [arg2] ..\r\n\tassembly /operator/src/assembly arg1 arg2 arg3..\r\n" },
     { name: "upload", help: "Upload a file from your local operator box to the remote agent box\r\n\tupload [local_path] [remote_path]\r\n\tupload /operator/src/file /agent/dst/file\r\n" },
     { name: "download", help: "Download a file from remote agent box to local operator box /\r\n\tdownload [remote_path]\r\n\tdownload /agent/src/file\r\n\t- Get from View > Downloads\r\n" },
-    { name: "socks", help: "socks <url> \r\n" +
-        "        - Connect to a SOCKS5 server.\r\n" +
-        "    Examples:\r\n" +
-        "        socks xyz.cloudfront.net:443/ws/agent/09f21e3b6e247b8a6a6ee2472f5\r\n" },
+    //{ name: "socks", help: "socks <url> \r\n" +
+    //    "        - Connect to a SOCKS5 server.\r\n" +
+    //    "    Examples:\r\n" +
+    //    "        socks xyz.cloudfront.net:443/ws/agent/09f21e3b6e247b8a6a6ee2472f5\r\n" },
     { name: "scan", help: "scan <host> [-p<ports>] \r\n" +
         "        - The target host or CIDR range to scan.\r\n" +
         "        - Options:\r\n" +
