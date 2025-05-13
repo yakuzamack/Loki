@@ -84,6 +84,8 @@ const commandDetails = [
     { name: "assembly", help: "Execute a .NET assembly and get command output\r\n\tassembly [local_path] [arg1] [arg2] ..\r\n\tassembly /operator/src/assembly arg1 arg2 arg3..\r\n" },
     { name: "upload", help: "Upload a file from your local operator box to the remote agent box\r\n\tupload [local_path] [remote_path]\r\n\tupload /operator/src/file /agent/dst/file\r\n" },
     { name: "download", help: "Download a file from remote agent box to local operator box /\r\n\tdownload [remote_path]\r\n\tdownload /agent/src/file\r\n\t- Get from View > Downloads\r\n" },
+    { name: "link", help: "Peer-to-peer connect to a Loki TCP agent\r\n\tlink <hostname> <port>\r\n\tlink localhost 3000\r\n" },
+    { name: "unlink", help: "Disconnect from a Loki TCP agent\r\n\tunlink <hostname>\r\n\tunlink localhost\r\n" },
     //{ name: "socks", help: "socks <url> \r\n" +
     //    "        - Connect to a SOCKS5 server.\r\n" +
     //    "    Examples:\r\n" +

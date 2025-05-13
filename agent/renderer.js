@@ -1,5 +1,6 @@
 const { ipcRenderer } = require('electron');
 const { log } = require('console');
+const os = require('os');
 
 ipcRenderer.on('make-web-request', async (event, requestOptions) => {
     try {
@@ -209,5 +210,53 @@ ipcRenderer.on('load', async (event, path) => {
         // // log(`[LOAD] Error loading module: ${error.message}`);
         // // log(`[LOAD] Error stack: ${error.stack}`);
         ipcRenderer.send('load-complete', `Error: ${error.message}`);
+    }
+});
+
+// Add IPC handler for system info requests
+ipcRenderer.on('get-system-info', async (event, requestId,mode) => {
+    try {
+        const hostname = os.hostname();
+        const username = os.userInfo().username;
+        const osType = os.type();
+        const osRelease = os.release();
+        const platform = os.platform();
+        const arch = os.arch();
+        
+        const PID = process.pid;
+        let procName = process.argv[0];
+        procName = procName.trim().replace(/Helper \(Renderer\)/g, "").trim();
+        
+        const nets = os.networkInterfaces();
+        const IpInfo = [];
+        for (const name of Object.keys(nets)) {
+            for (const net of nets[name]) {
+                // 'IPv4' is in Node <= 17, from 18 it's a number 4 or 6
+                const familyV4Value = typeof net.family === 'string' ? 'IPv4' : 4;
+                if (net.family === familyV4Value && !net.internal) {
+                    IpInfo.push(net.address);
+                }
+            }
+        }
+
+        // Create a JSON object with the collected information
+        const systemInfo = {
+            hostname: hostname,
+            username: username,
+            osType: osType,
+            osRelease: osRelease,
+            platform: platform,
+            arch: arch,
+            PID: PID,
+            Process: procName,
+            IP: IpInfo,
+            mode: mode
+        };
+
+        // Send the response back to main process
+        ipcRenderer.send(`system-info-response-${requestId}`, systemInfo);
+    } catch (error) {
+        console.error('Error getting system info:', error);
+        ipcRenderer.send(`system-info-response-${requestId}`, 0);
     }
 });

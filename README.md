@@ -148,9 +148,9 @@ _You don't need to compile the agent when backdooring Electron apps. Just replac
 ```
 npm install --save-dev javascript-obfuscator
 ```
-- Run `obfuscateAgent.js` script to create a Loki payload with your Storage Account info
+- Run `create_agent_payload.js` script to create a Loki payload with your Storage Account info
 ```
-bobby$ node obfuscateAgent.js 
+bobby$ node create_agent_payload.js 
 [+] Provide Azure storage account information:
         - Enter Storage Account  : 7f7584ty218ba5dba778.blob.core.windows.net
         - Enter SAS Token        : se=2025-05-28T23%3A14%3A48Z&sp=rwdlac&spr=https&sv=2022-11-02&ss=b&srt=sco&sig=5MXQzJ6FDZK8yYiBSgJ6FDZKgQzJMXBSgg6qE4ydrJ6FDZKSgg%3D
@@ -191,7 +191,7 @@ bobby$ node obfuscateAgent.js
 ## Backdooring Electron Apps and Keeping the real Application Working as Normal
 The most straightforward way to use Loki is to replace the files in `{ELECTRONAPP}/resources/app/` with the Loki files. This hollows out the app, meaning the app won't function normally -- Loki replaced its functionality.  
 
-If you really want to keep the Electron application running and have it also deploy Loki in the background all hope is not lost! [John Hammond](https://x.com/_JohnHammond) and I figured out a way to keep the real Electron application running. We've added the file you will need to `/loki/proxyapp/init.js` in this repo.
+If you really want to keep the Electron application running and have it also deploy Loki in the background all hope is not lost! [John Hammond](https://x.com/_JohnHammond) and I figured out a way to keep the real Electron application running. We've added the file you will need to `/loki/backdoor/init.js` in this repo.
 
 It is currently setup to work for Cursor, discovered to be vulnerable by [John Hammond](https://x.com/_JohnHammond). 
 
@@ -199,7 +199,7 @@ For doing this you will need to:
 - Download the Cursor app
 - Paste all Loki files except `package.json` to `cursor/resources/app/`
   - Don't replace the real `package.json`
-- Copy `/loki/proxyapp/init.js` to `cursor/resources/app/`
+- Copy `/loki/backdoor/init.js` to `cursor/resources/app/`
 - Modify contents of `cursor/resources/app/package.json` to:
   - set `"main":"init.js",`
   - delete `"type":"module",`

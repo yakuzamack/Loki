@@ -187,7 +187,7 @@ ipcMain.handle('updateagent', async (event, agentid,newcontainerid) => {
     {
         const newcontainer_blobs = await az.getContainerBlobs(newcontainerid);
         console.log(`${newcontainerid} container key blob : ${newcontainer_blobs['key']}`);
-        const container_key      = await az.getContainerAesKeys(agentid);
+        let container_key,links  = await az.getContainerAesKeys(agentid);
         let checkinData          = await az.checkinContainer(newcontainerid, container_key,newcontainer_blobs);
         let agentObj             = JSON.parse(checkinData);
         agentObj.agentid         = agentid;
@@ -234,6 +234,23 @@ ipcMain.on('upload-client-command-to-input-channel', async (event, agent_object)
     } catch (error) {
         console.error('Error uploading command to Azure Blob Storage:', error);
         event.reply('command-output', `Error: ${error.message}`); // Send error response
+    }
+});
+
+ipcMain.handle('get-agent-links', async (event, agentid) => {
+    try {
+        console.log(`[KERNEL][IPC] get-agent-links : ${agentid}`);
+        if(agentid == 0 || agentid == null || agentid == undefined || agentid == '')
+        {
+            return 0;
+        }
+        const [aesKeys, links] = await az.getContainerAesKeys(agentid);
+        const agentlinks = links;
+        console.log(`[KERNEL][IPC] get-agent-links : ${agentlinks}`);
+        return agentlinks;
+    } catch (error) {
+      console.error('Error getting agent links:', error);
+      return 0;
     }
 });
 
@@ -389,15 +406,15 @@ app.whenReady().then(() => {
   ]);
 Menu.setApplicationMenu(menu);
 // Handle right-click context menu for table rows
-ipcMain.on('show-row-context-menu', (event, agentDataJSON) => {
-        let agentData = JSON.parse(agentDataJSON);
-        const agentid = agentData.agentid;
+ipcMain.on('show-row-context-menu', (event, agentsDataJSON) => {
+        let agentsData = JSON.parse(agentsDataJSON);
+        console.log(`[RIGHT-CLICK] agentsData : ${JSON.stringify(agentsData)}`);
+        const agentid = agentsData[0].agentid;
         const contextMenu = Menu.buildFromTemplate([
             {
                 label: 'Remove',
                 click: async () => {
                     try {
-                        console.log(`IPC show-row-context-menu : AgentData : ${agentDataJSON}`);
                         global.haltUpdate = true;
 
                         // Handle agent window cleanup
@@ -437,8 +454,8 @@ ipcMain.on('show-row-context-menu', (event, agentDataJSON) => {
                         }
                         // Handle storage cleanup
                         try {
-                            await az.DeleteStorageBlob(global.config.metaContainer, agentData.agentid);
-                            await az.DeleteStorageContainer(agentData.containerid);
+                            await az.DeleteStorageBlob(global.config.metaContainer, agentid);
+                            await az.DeleteStorageContainer(agentsData[0].containerid);
                             
                             if (global.dashboardWindow) {
                                 console.log(`dashboardWindow exists`);
@@ -461,7 +478,61 @@ ipcMain.on('show-row-context-menu', (event, agentDataJSON) => {
                 label: 'Explorer',
                 click: () => {
                     console.log(`Explorer clicked for agent ID: ${agentid}`);
-                    createExplorerWindow(agentDataJSON);
+                    createExplorerWindow(JSON.stringify(agentsData[0]));
+                }
+            },
+            {
+                label: 'Links',
+                visible: agentsData[0].mode && agentsData[0].mode.startsWith('link'),
+                click: () => {
+                    console.log(`Links clicked for agent ID: ${agentid}`);
+                    const primaryDisplay = screen.getPrimaryDisplay();
+                    const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
+                    console.log(`Screen dimensions - Width: ${screenWidth}, Height: ${screenHeight}`);
+                    
+                    // Calculate window dimensions
+                    const numAgents = agentsData.length + 1; // Add 1 for the Azure storage card
+                    const headerHeight = 150;  // Height for window title bar and header
+                    const heightPerAgent = 528;  // Height per agent card
+                    const arrowSpacing = 10;  // Space between arrow and next card
+                    const calculatedHeight = headerHeight + (numAgents * heightPerAgent) + ((numAgents - 1) * arrowSpacing);
+                    const maxHeight = Math.floor(screenHeight * 0.9);
+                    console.log(`Calculated height: ${calculatedHeight}, Max height: ${maxHeight}`);
+                    
+                    const totalHeight = Math.min(calculatedHeight, maxHeight);
+                    const width = Math.min(
+                        Math.max(600, screenWidth * 0.6),
+                        800
+                    );
+                    
+                    const linksWindow = new BrowserWindow({
+                        width: width,
+                        height: totalHeight,
+                        minWidth: 600,
+                        minHeight: 400,
+                        webPreferences: {
+                            contextIsolation: false,
+                            nodeIntegration: true
+                        }
+                    });
+                    linksWindow.loadFile('links.html');
+                    linksWindow.webContents.on('did-finish-load', () => {
+                        // Add Azure storage account info to the agentsData
+                        const azureData = {
+                            hostname: global.config.storageAccount,
+                            platform: "Azure Storage Account",
+                            username: "",
+                            fileName: "",
+                            containerid: "",
+                            IP: "",
+                            PID: "",
+                            arch: "",
+                            mode: "",
+                            agentid: ""
+                        };
+                        agentsData.push(azureData);
+                        linksWindow.webContents.send('agent-links', agentsData);
+                    });
                 }
             }
         ]);

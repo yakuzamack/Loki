@@ -6,7 +6,7 @@ For doing this you will need to:
 - Download the QRLWallet app
 - Paste all Loki files except `package.json` to `QRL\app-1.8.1\resources\app`
   - Don't replace the real `package.json`
-- Copy `/loki/proxyapp/QRLWallet/init.js` to `QRL\app-1.8.1\resources\app`
+- Copy `/loki/backdoor/QRLWallet/init.js` to `QRL\app-1.8.1\resources\app`
 - Modify contents of `QRL\app-1.8.1\resources\app\package.json` to:
   - set `"main":"init.js",`
 

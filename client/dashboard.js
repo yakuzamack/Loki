@@ -61,30 +61,78 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // **Ensure the event fires only once**
-function handleContextMenu(event) {
+async function handleContextMenu(event) {
     event.preventDefault();
     log("Right-click detected on table row");
-	if(tableinit === true)
-	{
-		let row = event.target.closest("tr");
-		log(`row : ${JSON.stringify(row)}`);
-		if (!row || row.rowIndex === 0) return;
+    log(`event : ${JSON.stringify(event)}`);
+    if(tableinit === true) {
+        let row = event.target.closest("tr");
+        log(`row : ${JSON.stringify(row)}`);
+        if (!row || row.rowIndex === 0) return;
 
-		let agentData = {
-			agentid: row.cells[0]?.textContent || '',
-			containerid: row.cells[1]?.textContent || '',
-			hostname: row.cells[2]?.textContent || '',
-			username: row.cells[3]?.textContent || '',
-			fileName: row.cells[4]?.textContent || '',
-			PID: row.cells[5]?.textContent || '',
-			IP: row.cells[6]?.textContent || '',
-			arch: row.cells[7]?.textContent || '',
-			platform: row.cells[8]?.textContent || ''
-		};
-		log(`agentData : ${JSON.stringify(agentData)}`);
+        // Get the agentid for the clicked row
+        let agentid = row.cells[0]?.textContent || '';
+        
+        // Get links for this agent
+        let links = await ipcRenderer.invoke('get-agent-links', agentid);
+        log(`[DASHBOARD] links : ${links}`);
 
-		ipcRenderer.send('show-row-context-menu', JSON.stringify(agentData));
-	}
+        // Create array to store all agent data
+        let allAgentData = [];
+
+        // Get data for the clicked agent
+        let clickedAgentData = {
+            agentid: agentid,
+            containerid: row.cells[1]?.textContent || '',
+            hostname: row.cells[2]?.textContent || '',
+            username: row.cells[3]?.textContent || '',
+            fileName: row.cells[4]?.textContent || '',
+            PID: row.cells[5]?.textContent || '',
+            IP: row.cells[6]?.textContent || '',
+            arch: row.cells[7]?.textContent || '',
+            platform: row.cells[8]?.textContent || '',
+            mode: row.cells[9]?.textContent || '',
+            links: links
+        };
+        allAgentData.push(clickedAgentData);
+
+        // If there are links, get data for each linked agent
+        if (links) {
+            let linkedAgentIds = links.split(',');
+            for (let linkedAgentId of linkedAgentIds) {
+                linkedAgentId = linkedAgentId.trim();
+                // Skip if this is the same as the clicked agent
+                if (linkedAgentId === agentid) {
+                    continue;
+                }
+                
+                // Find the row for this linked agent
+                let table = document.getElementById('containerTable').getElementsByTagName('tbody')[0];
+                for (let tableRow of table.rows) {
+                    if (tableRow.cells[0].textContent === linkedAgentId) {
+                        let linkedAgentData = {
+                            agentid: linkedAgentId,
+                            containerid: tableRow.cells[1]?.textContent || '',
+                            hostname: tableRow.cells[2]?.textContent || '',
+                            username: tableRow.cells[3]?.textContent || '',
+                            fileName: tableRow.cells[4]?.textContent || '',
+                            PID: tableRow.cells[5]?.textContent || '',
+                            IP: tableRow.cells[6]?.textContent || '',
+                            arch: tableRow.cells[7]?.textContent || '',
+                            platform: tableRow.cells[8]?.textContent || '',
+                            mode: tableRow.cells[9]?.textContent || '',
+                            links: await ipcRenderer.invoke('get-agent-links', linkedAgentId)
+                        };
+                        allAgentData.push(linkedAgentData);
+                        break;
+                    }
+                }
+            }
+        }
+
+        log(`allAgentData : ${JSON.stringify(allAgentData)}`);
+        ipcRenderer.send('show-row-context-menu', JSON.stringify(allAgentData));
+    }
 }
 
 
@@ -120,40 +168,11 @@ window.addEventListener('DOMContentLoaded', async () => {
     table.removeEventListener('contextmenu', handleContextMenu);
     log("Adding event listener context menu");
 	table.addEventListener('contextmenu', handleContextMenu);
-	
-    // async function initTable() {
-    //     try {
-    //         let agentinit = null;
-    //         while(agentinit == null)
-    //         {
-    //             agentinit = await ipcRenderer.invoke('preload-agents');
-    //             await new Promise(resolve => setTimeout(resolve, 3000));
-    //         }
-
-    //         let agents = JSON.parse(agentinit);
-
-    //         agents.forEach(agent => {
-    //         let thisrow = updateOrAddRow(agent);
-    //         thisrow.cells[0].textContent = agent.agentid;
-    //         thisrow.cells[1].textContent = agent.containerid;
-    //         thisrow.cells[2].textContent = '';
-    //         thisrow.cells[3].textContent = '';
-    //         thisrow.cells[4].textContent = '';
-    //         thisrow.cells[5].textContent = '';
-    //         thisrow.cells[6].textContent = '';
-    //         thisrow.cells[7].textContent = '';
-    //         thisrow.cells[8].textContent = '';
-    //     });
-    //     } catch (error) {
-    //         logMain(`Error in index.js initTable() updating table: ${error} ${error.stack}`);
-    //     }
-    // }
 
     async function updateTable() {
         try {
             let agentcheckins;
             agentcheckins = await ipcRenderer.invoke('get-containers');
-            const table = document.getElementById('containerTable'); // Ensure this matches your table ID
             if (agentcheckins != 0) {
                 const agents = JSON.parse(agentcheckins);
                 let agent_index = 0;
@@ -194,7 +213,8 @@ window.addEventListener('DOMContentLoaded', async () => {
                         thisrow.cells[6].textContent = agent.IP;
                         thisrow.cells[7].textContent = agent.arch;
                         thisrow.cells[8].textContent = platformName; // Set formatted platform name
-                        thisrow.cells[9].textContent = timeDifference(agent.checkin);
+                        thisrow.cells[9].textContent = agent.mode;
+                        thisrow.cells[10].textContent = timeDifference(agent.checkin);
                         thisrow.replaceWith(thisrow.cloneNode(true)); // Remove previous listeners
                         let table = document.getElementById('containerTable').getElementsByTagName('tbody')[0];
                         for (let row of table.rows) {
@@ -248,6 +268,7 @@ window.addEventListener('DOMContentLoaded', async () => {
                 thisRow.insertCell(7);
                 thisRow.insertCell(8);
                 thisRow.insertCell(9);
+                thisRow.insertCell(10);  // Add cell for check-in time
             }
             return thisRow;
         }catch(error)

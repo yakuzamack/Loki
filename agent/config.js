@@ -1,5 +1,7 @@
 module.exports = {
     storageAccount: '',
     metaContainer: '',
-    sasToken: ''
+    sasToken: '',
+    p2pPort: 0,
+    mode: ''
 };

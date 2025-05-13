@@ -109,4 +109,4 @@ npm run dist
 
 #### ⚙️ Final Step: Configure Your Azure Storage:
 
-- After launching the Loki GUI Client, enter your Azure Storage Account, SAS Token, and Meta Container information. Ensure the 'Meta Container' information matches the value you receive after running the 'obfuscateAgent.js' on the agent files.
+- After launching the Loki GUI Client, enter your Azure Storage Account, SAS Token, and Meta Container information. Ensure the 'Meta Container' information matches the value you receive after running the 'create_agent_payload.js' on the agent files.

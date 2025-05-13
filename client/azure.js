@@ -161,18 +161,21 @@ async function updateDashboardTable()
               else{
                 thisAgent = new Agent();
                 thisAgent.agentid = agentMetaBlob;
-                thisAgent.aes = await getContainerAesKeys(thisAgent.agentid);
+                const [aesKeys, links] = await getContainerAesKeys(thisAgent.agentid);
+                thisAgent.aes = aesKeys;
+                thisAgent.links = links;
                 if(thisAgent.aes == null){ continue; }
                 let metaAgentResponse = await readBlob(global.config.metaContainer,agentMetaBlob);
                 if(metaAgentResponse.status != 200 || metaAgentResponse.response.data == null){ continue; }
                 thisAgent.container = metaAgentResponse.data;
                 thisAgent.blobs = await getContainerBlobs(thisAgent.container);
                 if(thisAgent.blobs == null ){ continue; }
-                let checkinData         = await checkinContainer(thisAgent.container, thisAgent.aes, thisAgent.blobs);
+                let checkinData    = await checkinContainer(thisAgent.container, thisAgent.aes, thisAgent.blobs);
                 if(checkinData == null){ continue; }
                 try {
                     if (typeof checkinData === 'string') { agentObj = JSON.parse(checkinData); } else { continue; }
                 } catch (error) { continue; }
+                log(`agentObj : ${JSON.stringify(agentObj)}`);
                 thisAgent.hostname = agentObj.hostname;
                 thisAgent.IP = agentObj.IP;
                 thisAgent.osRelease = agentObj.osRelease;
@@ -182,10 +185,14 @@ async function updateDashboardTable()
                 thisAgent.Process = agentObj.Process;
                 thisAgent.username = agentObj.username;
                 thisAgent.arch = agentObj.arch;
+                thisAgent.mode = agentObj.mode;
                 if (global.haltUpdate == false) { global.agents.push(thisAgent); }
               }  
               let checkinBlobLastModified = await getBlobLastModified(global.config.metaContainer,agentMetaBlob);
               const timestamp = new Date(checkinBlobLastModified).getTime(); 
+              if(!timestamp){
+                return 0;
+              }
               thisAgent.checkin = timestamp;
               agentcheckins.push(thisAgent); 
             }catch(error)
@@ -395,7 +402,8 @@ async function getContainerAesKeys(agentid)
         'key':JSON.parse(aes_key),
         'iv': JSON.parse(aes_iv)
       }
-      return key;
+      const links = response.response.headers["x-ms-meta-link"];
+      return [key,links];
   } catch (error) {
       console.error(`[AESKEYS][!] Error getting aes keys for agent ${agentid}:`, error.message, error.stack);
       return null; 
@@ -405,8 +413,8 @@ async function getContainerAesKeys(agentid)
 async function checkinContainer(containerName, aes, blobs)
 {
     try {
-        log(`checkinContainer() | containerName : ${containerName}`);
-        log(`checkinContainer() | aes : ${JSON.stringify(aes)}`);
+        //log(`checkinContainer() | containerName : ${containerName}`);
+        //log(`checkinContainer() | aes : ${JSON.stringify(aes)}`);
         const aes_key_bytes = Buffer.from(aes['key'], 'hex');
         const aes_iv_bytes  = Buffer.from(aes['iv'],  'hex'); 
         let checkin         = await readBlob(containerName, blobs['checkin']);
@@ -420,7 +428,7 @@ async function checkinContainer(containerName, aes, blobs)
             return dec_checkin;
         }
     } catch (error) {
-        console.error(`Error connecting to container ${containerName}:`, error.message);
+        //console.error(`Error connecting to container ${containerName}:`, error.message);
         return null;
     }
 }
