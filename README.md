@@ -22,6 +22,7 @@ For more details on how Loki works, checkout this blog post:
 | [Dylan Tran](https://x.com/d_tranman)  | Creator |
 | [Ellis Springe](https://x.com/knavesec)| Alpha Tester |
 | [Shawn Jones](https://x.com/anthemtotheego) | Assembly Execution Code | 
+| [Trusted Sec](https://github.com/trustedsec/COFFLoader) | COFFLoader Code | 
 | [Simon Exley](https://www.linkedin.com/in/simon-exley-355816194/) | Video Creator |
 | [Clinton Elves](https://www.linkedin.com/in/clinton-elves-180ba0148/) | Video Creator |
 | [John Hammond](https://x.com/_JohnHammond) | Video Creator |
