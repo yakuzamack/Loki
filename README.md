@@ -125,15 +125,17 @@ First you need to identify a vulnerable Electron application which does not do A
 | ✅         | [DevHub](https://devhubapp.com/)                    | `DevHub.exe`            | `0.102.0`  | [ab4y98](https://github.com/Ab4y98)|
 | ✅         | [Asana](https://asana.com/)                           | `Asana.exe`           | `2.3.0`       | [syro](https://github.com/0xsyr0)                                            |
 | ✅         | [Insomnia](https://insomnia.rest/)                    | `insomnia-11.0.2.exe` | `11.0.2`      | [syro](https://github.com/0xsyr0)                                            |
-| ✅         | [Ferdium](https://ferdium.org/)                       | `Ferdium.exe`       | `7.0.1`         | [pir4cy](https://github.com/pir4cy)                                            |
-| ✅         | [Franz](https://meetfranz.com/)                       | `Franz.exe`         | `5.11.0`        | [pir4cy](https://github.com/pir4cy)                                            |
-| ✅         | [TIDAL](https://tidal.com/)                           | `TIDAL.exe`         |                 | [pir4cy](https://github.com/pir4cy)                                            |
-| ✅         | [FACEIT](https://faceit.com/)                          | `FACEIT.exe`         | `2.1.10`                | [icheernoom](https://x.com/icheernoom)                               |
-| ✅         | [Unity](https://unity.com/)                          | `Unity Hub.exe`       |                | [Sawyer](https://github.com/SawyersPresent)                                |
+| ✅         | [Ferdium](https://ferdium.org/)                       | `Ferdium.exe`       | `7.0.1`         | [pir4cy](https://github.com/pir4cy)                                          |
+| ✅         | [Franz](https://meetfranz.com/)                       | `Franz.exe`         | `5.11.0`        | [pir4cy](https://github.com/pir4cy)                                          |
+| ✅         | [TIDAL](https://tidal.com/)                           | `TIDAL.exe`         |                 | [pir4cy](https://github.com/pir4cy)                                          |
+| ✅         | [FACEIT](https://faceit.com/)                          | `FACEIT.exe`         | `2.1.10`                | [icheernoom](https://x.com/icheernoom)                             |
+| ✅         | [Unity](https://unity.com/)                          | `Unity Hub.exe`       |                | [Sawyer](https://github.com/SawyersPresent)                                  |
+| ✅         | Docker Desktop                                        | `Docker Desktop.exe` |   `4.41.2`     |      [robinx0](https://linkedin.com/in/robinary)                             |
 | ❌         | 1Password                                             | `1Password.exe`     |                 |                                                                              |
 | ❌         | Signal                                                | `Signal.exe`        |                 |                                                                              |
 | ❌         | Slack                                                 | `slack.exe`         |                 |                                                                              |
 | ❌         | Notion                                                | `Notion.exe`        |                 |                                                                              |
+
 
 
 ### Simple Instructions
