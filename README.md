@@ -131,7 +131,9 @@ First you need to identify a vulnerable Electron application which does not do A
 | ✅         | [FACEIT](https://faceit.com/)                          | `FACEIT.exe`         | `2.1.10`                | [icheernoom](https://x.com/icheernoom)                             |
 | ✅         | [Unity](https://unity.com/)                          | `Unity Hub.exe`       |                | [Sawyer](https://github.com/SawyersPresent)                                  |
 | ✅         | Docker Desktop                                        | `Docker Desktop.exe` |   `4.41.2`     |      [robinx0](https://linkedin.com/in/robinary)                             |
-| ✅         | Git Kraken                                        | `gitkraken.exe` |   `11.1.1`     |      [robinx0](https://linkedin.com/in/robinary)                             |
+| ✅         | Git Kraken                                        | `gitkraken.exe` |   `11.1.1`     |      [robinx0](https://linkedin.com/in/robinary)                                      |
+| ✅         | Hyper                                        | `hyper.exe` |   `3.4.1`     |      [nahidha5an](https://www.linkedin.com/in/a-m-nahid-hasan-b2602335/)                        |
+| ✅         | LM Studio                                        | `lmstudio.exe` |   `0.3.14`     |      [nahidha5an](https://www.linkedin.com/in/a-m-nahid-hasan-b2602335/)                |
 | ❌         | 1Password                                             | `1Password.exe`     |                 |                                                                              |
 | ❌         | Signal                                                | `Signal.exe`        |                 |                                                                              |
 | ❌         | Slack                                                 | `slack.exe`         |                 |                                                                              |
