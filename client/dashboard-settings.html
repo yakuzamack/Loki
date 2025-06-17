@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1e1e1e">
+  <title>Dashboard Settings</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Fira Code', monospace;
+      margin: 0;
+      padding: 20px;
+      background-color: #1e1e1e;
+      color: #c5c5c5;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+
+    .settings-container {
+      max-width: 500px;
+      margin: 0 auto;
+      background-color: #2d2d2d;
+      border: 1px solid #555;
+      border-radius: 8px;
+      padding: 30px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+      height: fit-content;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .settings-header {
+      text-align: center;
+      margin-bottom: 30px;
+      border-bottom: 1px solid #555;
+      padding-bottom: 20px;
+    }
+
+    .settings-title {
+      color: #e0e0e0;
+      font-size: 20px;
+      font-weight: bold;
+      margin: 0;
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+    }
+
+    .settings-subtitle {
+      color: #888;
+      font-size: 12px;
+      margin-top: 5px;
+    }
+
+    .control-group {
+      margin-bottom: 25px;
+    }
+
+    .control-group label {
+      display: block;
+      color: #e0e0e0;
+      font-size: 13px;
+      margin-bottom: 6px;
+      font-weight: bold;
+    }
+
+    .background-image-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .background-image-preview {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background-color: #3a3a3a;
+      border: 1px solid #555;
+      border-radius: 4px;
+      padding: 8px;
+      min-height: 20px;
+    }
+
+    .background-image-preview span {
+      flex: 1;
+      color: #888;
+      font-size: 11px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .buttons-container {
+      display: flex;
+      gap: 12px;
+      margin-top: 25px;
+      border-top: 1px solid #555;
+      padding-top: 20px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 12px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: 'Fira Code', monospace;
+      font-size: 12px;
+      font-weight: bold;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+      transition: left 0.5s;
+    }
+
+    .btn:hover::before {
+      left: 100%;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #666, #777);
+      color: #fff;
+      border: 1px solid #555;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #777, #888);
+      box-shadow: 0 6px 12px rgba(153, 153, 153, 0.4);
+      transform: translateY(-2px);
+    }
+
+    .btn-secondary {
+      background: linear-gradient(135deg, #4a4a4a, #5a5a5a);
+      color: #fff;
+      border: 1px solid #333;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .btn-secondary:hover {
+      background: linear-gradient(135deg, #5a5a5a, #6a6a6a);
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+      transform: translateY(-2px);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #333, #444);
+      color: #ccc;
+      border: 1px solid #666;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-danger:hover {
+      background: linear-gradient(135deg, #444, #555);
+      color: #fff;
+      box-shadow: 0 6px 12px rgba(153, 153, 153, 0.3);
+      transform: translateY(-2px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    /* Smaller buttons for background image controls */
+    .background-image-preview .btn,
+    .background-image-controls .btn {
+      padding: 6px 12px;
+      font-size: 10px;
+      min-width: 80px;
+      flex: none;
+    }
+
+  </style>
+</head>
+<body>
+  <div class="settings-container">
+
+    <div class="control-group">
+      <label for="backgroundImageControl">Background Image</label>
+      <div class="background-image-controls">
+        <button class="btn btn-secondary" onclick="selectBackgroundImage()">Browse Images...</button>
+        <div class="background-image-preview" id="backgroundImagePreview">
+          <span id="backgroundImagePath">No image selected</span>
+          <button class="btn btn-danger" onclick="clearBackgroundImage()" id="clearImageBtn" style="display: none;">Clear</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="buttons-container">
+      <button class="btn btn-secondary" onclick="resetToDefaults()">Reset to Defaults</button>
+      <button class="btn btn-primary" onclick="applySettings()">Apply Settings</button>
+    </div>
+  </div>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+    
+    // Settings variables
+    let currentSettings = {
+      backgroundImage: null
+    };
+
+    // Initialize settings when window loads
+    window.addEventListener('DOMContentLoaded', () => {
+      loadSettings();
+    });
+
+    function selectBackgroundImage() {
+      console.log('=== SELECT BACKGROUND IMAGE CLICKED ===');
+      // Send IPC message to open file dialog
+      ipcRenderer.invoke('select-background-image').then(imagePath => {
+        if (imagePath) {
+          console.log('Selected image path:', imagePath);
+          currentSettings.backgroundImage = imagePath;
+          updateBackgroundImageDisplay();
+        }
+      }).catch(error => {
+        console.error('Error selecting background image:', error);
+      });
+    }
+
+    function clearBackgroundImage() {
+      console.log('=== CLEAR BACKGROUND IMAGE CLICKED ===');
+      currentSettings.backgroundImage = null;
+      updateBackgroundImageDisplay();
+    }
+
+    function updateBackgroundImageDisplay() {
+      const pathSpan = document.getElementById('backgroundImagePath');
+      const clearBtn = document.getElementById('clearImageBtn');
+      
+      if (currentSettings.backgroundImage) {
+        // Show just the filename, not the full path
+        const filename = currentSettings.backgroundImage.split(/[\\/]/).pop();
+        pathSpan.textContent = filename;
+        clearBtn.style.display = 'inline-block';
+      } else {
+        pathSpan.textContent = 'No image selected';
+        clearBtn.style.display = 'none';
+      }
+    }
+
+    function applySettings() {
+      console.log('=== APPLY DASHBOARD SETTINGS CLICKED ===');
+      console.log('Current settings to apply:', currentSettings);
+      
+      // Send settings to update dashboard and save to file
+      console.log('Sending apply-dashboard-settings IPC message...');
+      ipcRenderer.send('apply-dashboard-settings', currentSettings);
+      console.log('IPC message sent successfully');
+      
+      // Close window
+      console.log('Closing dashboard settings window...');
+      closeWindow();
+    }
+
+    function resetToDefaults() {
+      // Reset background image
+      currentSettings.backgroundImage = null;
+      updateBackgroundImageDisplay();
+    }
+
+    function loadSettings() {
+      // Load settings from customize.js file
+      ipcRenderer.invoke('get-customize-settings').then(settings => {
+        if (settings) {
+          console.log('Loading customize settings from file:', settings);
+          
+          if (settings.backgroundImage) {
+            currentSettings.backgroundImage = settings.backgroundImage;
+          }
+          
+          updateBackgroundImageDisplay();
+        }
+      }).catch(error => {
+        console.error('Error loading customize settings:', error);
+      });
+    }
+
+    function closeWindow() {
+      ipcRenderer.send('close-dashboard-settings-window');
+    }
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'c') {
+            ipcRenderer.send('copy');
+            event.preventDefault();
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key === 'v') {
+          ipcRenderer.send('paste');
+          event.preventDefault();
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key === 'x') {
+          ipcRenderer.send('cut');
+          event.preventDefault();
+      }
+    });
+  </script>
+</body>
+</html> 

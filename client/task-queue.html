@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Queue</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', monospace;
+            background-color: #18191a;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #232323;
+            padding-bottom: 15px;
+        }
+
+        .agent-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .agent-id {
+            font-size: 18px;
+            font-weight: bold;
+            color: #e0e0e0;
+            letter-spacing: 1px;
+        }
+
+        .agent-details {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            font-size: 14px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 20px;
+            font-weight: bold;
+            display: block;
+        }
+
+        .stat-label {
+            color: #888;
+            font-size: 12px;
+        }
+
+        .queued, .processing, .completed, .error {
+            /* Keep status colors for numbers */
+        }
+
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .btn {
+            background-color: #232323;
+            border: 1px solid #333;
+            color: #e0e0e0;
+            padding: 8px 16px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 12px;
+            transition: background-color 0.2s, color 0.2s;
+        }
+
+        .btn:hover {
+            background-color: #333;
+            color: #fff;
+        }
+
+        .btn:disabled {
+            background-color: #18191a;
+            color: #666;
+            cursor: not-allowed;
+        }
+
+        .btn.danger {
+            background-color: #333;
+            color: #e0e0e0;
+        }
+
+        .btn.danger:hover {
+            background-color: #444;
+            color: #fff;
+        }
+
+        .filter-select {
+            background-color: #232323;
+            border: 1px solid #333;
+            color: #e0e0e0;
+            padding: 8px;
+            border-radius: 4px;
+        }
+
+        .task-list {
+            border: 1px solid #232323;
+            border-radius: 4px;
+            background-color: #202124;
+        }
+
+        .task-item {
+            border-bottom: 1px solid #232323;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            background-color: #232323;
+            transition: background 0.2s;
+        }
+
+        .task-item:last-child {
+            border-bottom: none;
+        }
+
+        .task-item.processing {
+            background-color: #28251a;
+            border-left: 4px solid #ff9800;
+        }
+
+        .task-info {
+            flex-grow: 1;
+            margin-right: 15px;
+        }
+
+        .task-command {
+            font-family: 'Fira Mono', 'Courier New', monospace;
+            font-size: 14px;
+            color: #e0e0e0;
+            word-break: break-all;
+            margin-bottom: 5px;
+            background: none;
+        }
+
+        .task-meta {
+            font-size: 12px;
+            color: #888;
+            display: flex;
+            gap: 15px;
+        }
+
+        .task-status {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-starting { background-color: #2196f3; }
+        .status-queued { background-color: #ffeb3b; color: #000; }
+        .status-processing { background-color: #ff9800; color: #000; }
+        .status-completed { background-color: #4caf50; }
+        .status-error { background-color: #f44336; }
+
+        .task-actions {
+            display: flex;
+            gap: 5px;
+            flex-shrink: 0;
+        }
+
+        .action-btn {
+            background-color: transparent;
+            border: 1px solid #333;
+            color: #e0e0e0;
+            padding: 4px 8px;
+            cursor: pointer;
+            border-radius: 3px;
+            font-size: 11px;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .action-btn:hover {
+            background-color: #333;
+            color: #fff;
+        }
+
+        .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .edit-input {
+            background-color: #232323;
+            border: 1px solid #333;
+            color: #e0e0e0;
+            padding: 5px;
+            font-family: 'Fira Mono', 'Courier New', monospace;
+            font-size: 14px;
+            width: 100%;
+            border-radius: 3px;
+        }
+
+        .no-tasks {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+            font-style: italic;
+        }
+
+        .queue-position {
+            position: absolute;
+            left: 5px;
+            top: 5px;
+            background-color: #333;
+            color: #e0e0e0;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="agent-info">
+            <span class="agent-id" id="agentId">Loading...</span>
+            <span class="agent-details" id="agentDetails"></span>
+        </div>
+        <div class="stats">
+            <div class="stat-item">
+                <span class="stat-number queued" id="queuedCount">0</span>
+                <span class="stat-label">Queued</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number processing" id="processingCount">0</span>
+                <span class="stat-label">Processing</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number completed" id="completedCount">0</span>
+                <span class="stat-label">Completed</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number error" id="errorCount">0</span>
+                <span class="stat-label">Errors</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn" onclick="refreshTasks()">🔄 Refresh</button>
+        <select class="filter-select" id="statusFilter" onchange="filterTasks()">
+            <option value="all">All Tasks</option>
+            <option value="starting">Starting</option>
+            <option value="queued">Queued</option>
+            <option value="processing">Processing</option>
+            <option value="completed">Completed</option>
+            <option value="error">Errors</option>
+        </select>
+        <button class="btn danger" onclick="clearCompleted()">🗑️ Clear Completed</button>
+    </div>
+
+    <div class="task-list" id="taskList">
+        <div class="no-tasks">No tasks found</div>
+    </div>
+
+    <script src="task-queue.js"></script>
+</body>
+</html> 

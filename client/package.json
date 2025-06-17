@@ -1,14 +1,13 @@
 {
   "name": "loki",
-  "version": "2.0.0",
+  "version": "2.4.0",
   "main": "./kernel.js",
   "scripts": {
     "start": "electron .",
-    "test": "echo \"Error: no test specified\" && exit 1",
     "pack": "electron-builder --dir",
     "dist": "electron-builder"
   },
-  "keywords": ["C2","Electron","Red Team","adversary simulation","https://x.com/0xBoku","https://www.linkedin.com/in/bobby-cooke/"],
+  "keywords": ["C2","Electron","Red Team","Adversary Simulation","https://x.com/0xBoku","https://www.linkedin.com/in/bobby-cooke/"],
   "author": "Bobby Cooke",
   "homepage": "https://0xBoku.com",
   "license": "BSL",
@@ -23,12 +22,11 @@
     "copyright": "© 2025 Bobby Cooke",
     "asar": true,
     "files": [
-      "kernel.js",
       "*.html",
       "*.js",
       "*.css",
       "assets/**",
-      "!node_modules/electron-builder/**"
+      "!node_modules/**"
     ],
     "mac": {
       "icon": "assets/mac/icon.icns",

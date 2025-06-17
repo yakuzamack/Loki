@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1e1e1e">
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Fira Code', monospace;
+      margin: 0;
+      padding: 20px;
+      background-color: #1e1e1e;
+      color: #c5c5c5;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+
+    .settings-container {
+      max-width: 500px;
+      margin: 0 auto;
+      background-color: #2d2d2d;
+      border: 1px solid #555;
+      border-radius: 8px;
+      padding: 30px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+      height: fit-content;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .settings-header {
+      text-align: center;
+      margin-bottom: 30px;
+      border-bottom: 1px solid #555;
+      padding-bottom: 20px;
+    }
+
+    .settings-title {
+      color: #e0e0e0;
+      font-size: 20px;
+      font-weight: bold;
+      margin: 0;
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+    }
+
+    .settings-subtitle {
+      color: #888;
+      font-size: 12px;
+      margin-top: 5px;
+    }
+
+    .control-group {
+      margin-bottom: 25px;
+    }
+
+    .control-group label {
+      display: block;
+      color: #e0e0e0;
+      font-size: 13px;
+      margin-bottom: 6px;
+      font-weight: bold;
+    }
+
+    .control-group select,
+    .control-group input[type="range"],
+    .control-group input[type="color"] {
+      width: 100%;
+      background-color: #3a3a3a;
+      border: 1px solid #555;
+      border-radius: 4px;
+      color: #e0e0e0;
+      padding: 8px;
+      font-family: 'Fira Code', monospace;
+      font-size: 12px;
+      box-sizing: border-box;
+    }
+
+    .control-group select {
+      cursor: pointer;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 6px;
+      background: linear-gradient(to right, #666, #333);
+      outline: none;
+      border-radius: 3px;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      background: #999;
+      cursor: pointer;
+      border-radius: 50%;
+      box-shadow: 0 0 8px rgba(153, 153, 153, 0.6);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      background: #999;
+      cursor: pointer;
+      border-radius: 50%;
+      border: none;
+      box-shadow: 0 0 8px rgba(153, 153, 153, 0.6);
+    }
+
+    .value-display {
+      text-align: center;
+      color: #888;
+      font-size: 11px;
+      margin-top: 5px;
+    }
+
+    .zoom-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+      background-color: #3a3a3a;
+      border: 1px solid #555;
+      border-radius: 4px;
+      padding: 8px;
+    }
+
+    .zoom-btn {
+      background: linear-gradient(135deg, #555, #666);
+      border: 1px solid #444;
+      border-radius: 6px;
+      color: #fff;
+      width: 32px;
+      height: 32px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .zoom-btn:hover {
+      background: linear-gradient(135deg, #666, #777);
+      box-shadow: 0 0 12px rgba(153, 153, 153, 0.4);
+      transform: translateY(-1px);
+    }
+
+    .zoom-btn:active {
+      transform: translateY(0);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    }
+
+    .zoom-level {
+      color: #e0e0e0;
+      font-weight: bold;
+      min-width: 50px;
+      text-align: center;
+    }
+
+    .background-image-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .background-image-preview {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background-color: #3a3a3a;
+      border: 1px solid #555;
+      border-radius: 4px;
+      padding: 8px;
+      min-height: 20px;
+    }
+
+    .background-image-preview span {
+      flex: 1;
+      color: #888;
+      font-size: 11px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .buttons-container {
+      display: flex;
+      gap: 12px;
+      margin-top: 25px;
+      border-top: 1px solid #555;
+      padding-top: 20px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 12px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: 'Fira Code', monospace;
+      font-size: 12px;
+      font-weight: bold;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+      transition: left 0.5s;
+    }
+
+    .btn:hover::before {
+      left: 100%;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #666, #777);
+      color: #fff;
+      border: 1px solid #555;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #777, #888);
+      box-shadow: 0 6px 12px rgba(153, 153, 153, 0.4);
+      transform: translateY(-2px);
+    }
+
+    .btn-secondary {
+      background: linear-gradient(135deg, #4a4a4a, #5a5a5a);
+      color: #fff;
+      border: 1px solid #333;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .btn-secondary:hover {
+      background: linear-gradient(135deg, #5a5a5a, #6a6a6a);
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+      transform: translateY(-2px);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #333, #444);
+      color: #ccc;
+      border: 1px solid #666;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-danger:hover {
+      background: linear-gradient(135deg, #444, #555);
+      color: #fff;
+      box-shadow: 0 6px 12px rgba(153, 153, 153, 0.3);
+      transform: translateY(-2px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    /* Smaller buttons for background image controls */
+    .background-image-preview .btn,
+    .background-image-controls .btn {
+      padding: 6px 12px;
+      font-size: 10px;
+      min-width: 80px;
+      flex: none;
+    }
+
+  </style>
+</head>
+<body>
+  <div class="settings-container">
+    <div class="control-group">
+      <label for="fontFamilyControl">Font Family</label>
+      <select id="fontFamilyControl" onchange="updatePreview()">
+        <option value="'Fira Code', monospace">Fira Code</option>
+        <option value="'Courier New', monospace">Courier New</option>
+        <option value="'Monaco', monospace">Monaco</option>
+        <option value="'Menlo', monospace">Menlo</option>
+        <option value="'Consolas', monospace">Consolas</option>
+        <option value="'DejaVu Sans Mono', monospace">DejaVu Sans Mono</option>
+        <option value="'Liberation Mono', monospace">Liberation Mono</option>
+        <option value="'Source Code Pro', monospace">Source Code Pro</option>
+        <option value="'Ubuntu Mono', monospace">Ubuntu Mono</option>
+        <option value="'Roboto Mono', monospace">Roboto Mono</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label for="fontSizeControl">Font Size</label>
+      <input type="range" id="fontSizeControl" min="8" max="28" value="16" onchange="updatePreview()">
+      <div class="value-display" id="fontSizeValue">16px</div>
+    </div>
+
+    <div class="control-group">
+      <label for="fontColorControl">Font Color</label>
+      <input type="color" id="fontColorControl" value="#c5c5c5" onchange="updatePreview()">
+    </div>
+
+    <div class="control-group">
+      <label for="agentBackgroundImageControl">Agent Background Image</label>
+      <div class="background-image-controls">
+        <button class="btn btn-secondary" onclick="selectAgentBackgroundImage()">Browse Images...</button>
+        <div class="background-image-preview" id="agentBackgroundImagePreview">
+          <span id="agentBackgroundImagePath">No image selected</span>
+          <button class="btn btn-danger" onclick="clearAgentBackgroundImage()" id="clearAgentImageBtn" style="display: none;">Clear</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label for="historyLengthControl">Command History Length</label>
+      <input type="range" id="historyLengthControl" min="10" max="1010" value="100" step="10" onchange="updatePreview()">
+      <div class="value-display" id="historyLengthValue">100 lines from log file on startup</div>
+    </div>
+
+    <div class="control-group">
+      <label for="zoomControl">Zoom Level</label>
+      <div class="zoom-controls">
+        <button class="zoom-btn" onclick="adjustZoom(-0.1)">-</button>
+        <span class="zoom-level" id="zoomLevel">100%</span>
+        <button class="zoom-btn" onclick="adjustZoom(0.1)">+</button>
+      </div>
+      <div class="value-display">Use Ctrl++ and Ctrl+- for quick zoom adjustment</div>
+    </div>
+
+    <div class="buttons-container">
+      <button class="btn btn-secondary" onclick="resetToDefaults()">Reset to Defaults</button>
+      <button class="btn btn-primary" onclick="applySettings()">Apply Settings</button>
+    </div>
+  </div>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+    
+    // Settings variables
+    let currentZoom = 1.0;
+    let currentSettings = {
+      fontFamily: "'Fira Code', monospace",
+      fontSize: 16,
+      fontColor: "#c5c5c5",
+      zoom: 1.0,
+      agentBackgroundImage: null,
+      historyLength: 100
+    };
+
+    // Initialize settings when window loads
+    window.addEventListener('DOMContentLoaded', () => {
+      loadSettings();
+      updatePreview();
+    });
+
+    function adjustZoom(delta) {
+      currentZoom = Math.max(0.5, Math.min(2.0, currentZoom + delta));
+      document.getElementById('zoomLevel').textContent = Math.round(currentZoom * 100) + '%';
+      updatePreview();
+    }
+
+    function updatePreview() {
+      const fontSize = document.getElementById('fontSizeControl').value;
+      const fontFamily = document.getElementById('fontFamilyControl').value;
+      const fontColor = document.getElementById('fontColorControl').value;
+      const historyLength = document.getElementById('historyLengthControl').value;
+      
+      // Update display
+      document.getElementById('fontSizeValue').textContent = fontSize + 'px';
+      
+      // Handle infinite history length display
+      if (parseInt(historyLength) >= 1010) {
+        document.getElementById('historyLengthValue').textContent = '∞ (all lines) from log file on startup';
+      } else {
+        document.getElementById('historyLengthValue').textContent = historyLength + ' lines from log file on startup';
+      }
+      
+      // Apply preview to this window
+      document.body.style.fontFamily = fontFamily;
+      document.body.style.fontSize = fontSize + 'px';
+      document.body.style.color = fontColor;
+      
+      // Update current settings
+      currentSettings = {
+        fontFamily: fontFamily,
+        fontSize: parseInt(fontSize),
+        fontColor: fontColor,
+        zoom: currentZoom,
+        agentBackgroundImage: currentSettings.agentBackgroundImage,
+        historyLength: parseInt(historyLength) >= 1010 ? -1 : parseInt(historyLength) // Use -1 for infinite
+      };
+    }
+
+    function applySettings() {
+      console.log('=== APPLY SETTINGS CLICKED ===');
+      console.log('Current settings to apply:', currentSettings);
+      
+      // Send settings to parent agent window (this will also save to file)
+      console.log('Sending apply-agent-settings IPC message...');
+      ipcRenderer.send('apply-agent-settings', currentSettings);
+      console.log('IPC message sent successfully');
+      
+      // If history length changed, trigger reload of logs in agent window
+      console.log('Sending reload-history IPC message...');
+      ipcRenderer.send('reload-agent-history', currentSettings.historyLength);
+      
+      // Close window
+      console.log('Closing settings window...');
+      closeWindow();
+    }
+
+    function resetToDefaults() {
+      currentZoom = 1.0;
+      document.getElementById('fontSizeControl').value = 16;
+      document.getElementById('fontFamilyControl').value = "'Fira Code', monospace";
+      document.getElementById('fontColorControl').value = "#c5c5c5";
+      document.getElementById('historyLengthControl').value = 100;
+      document.getElementById('zoomLevel').textContent = '100%';
+      
+      // Reset agent background image
+      currentSettings.agentBackgroundImage = null;
+      updateAgentBackgroundImageDisplay();
+      
+      updatePreview();
+    }
+
+    function loadSettings() {
+      // Load settings from customize.js file
+      ipcRenderer.invoke('get-customize-settings').then(settings => {
+        if (settings) {
+          console.log('Loading customize settings from file:', settings);
+          
+          if (settings.zoom) {
+            currentZoom = settings.zoom;
+            document.getElementById('zoomLevel').textContent = Math.round(currentZoom * 100) + '%';
+          }
+          
+          if (settings.fontSize) {
+            document.getElementById('fontSizeControl').value = settings.fontSize;
+          }
+          
+          if (settings.fontFamily) {
+            document.getElementById('fontFamilyControl').value = settings.fontFamily;
+          }
+          
+          if (settings.fontColor) {
+            document.getElementById('fontColorControl').value = settings.fontColor;
+          }
+          
+          if (settings.agentBackgroundImage) {
+            currentSettings.agentBackgroundImage = settings.agentBackgroundImage;
+          }
+          
+          if (settings.historyLength !== undefined) {
+            // Handle infinite case (-1) by setting slider to max value
+            const sliderValue = settings.historyLength === -1 ? 1010 : settings.historyLength;
+            document.getElementById('historyLengthControl').value = sliderValue;
+          }
+          
+          currentSettings = settings;
+          updateAgentBackgroundImageDisplay();
+          updatePreview();
+        }
+      }).catch(error => {
+        console.error('Error loading customize settings:', error);
+      });
+    }
+
+    function selectAgentBackgroundImage() {
+      console.log('=== SELECT AGENT BACKGROUND IMAGE CLICKED ===');
+      // Send IPC message to open file dialog
+      ipcRenderer.invoke('select-background-image').then(imagePath => {
+        if (imagePath) {
+          console.log('Selected agent background image path:', imagePath);
+          currentSettings.agentBackgroundImage = imagePath;
+          updateAgentBackgroundImageDisplay();
+        }
+      }).catch(error => {
+        console.error('Error selecting agent background image:', error);
+      });
+    }
+
+    function clearAgentBackgroundImage() {
+      console.log('=== CLEAR AGENT BACKGROUND IMAGE CLICKED ===');
+      currentSettings.agentBackgroundImage = null;
+      updateAgentBackgroundImageDisplay();
+    }
+
+    function updateAgentBackgroundImageDisplay() {
+      const pathSpan = document.getElementById('agentBackgroundImagePath');
+      const clearBtn = document.getElementById('clearAgentImageBtn');
+      
+      if (currentSettings.agentBackgroundImage) {
+        // Show just the filename, not the full path
+        const filename = currentSettings.agentBackgroundImage.split(/[\\/]/).pop();
+        pathSpan.textContent = filename;
+        clearBtn.style.display = 'inline-block';
+      } else {
+        pathSpan.textContent = 'No image selected';
+        clearBtn.style.display = 'none';
+      }
+    }
+
+    function closeWindow() {
+      ipcRenderer.send('close-agent-settings-window');
+    }
+    
+    // Keyboard shortcuts for zoom
+    document.addEventListener('keydown', (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'c') {
+            ipcRenderer.send('copy');
+            event.preventDefault();
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key === 'v') {
+          ipcRenderer.send('paste');
+          event.preventDefault();
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key === 'x') {
+          ipcRenderer.send('cut');
+          event.preventDefault();
+      }
+      // Ctrl++ for zoom in
+      if (event.ctrlKey && (event.key === '+' || event.key === '=')) {
+        event.preventDefault();
+        adjustZoom(0.1);
+      }
+      
+      // Ctrl+- for zoom out
+      if (event.ctrlKey && event.key === '-') {
+        event.preventDefault();
+        adjustZoom(-0.1);
+      }
+    });
+  </script>
+</body>
+</html> 

@@ -37,6 +37,30 @@ function timeDifference(oldTimestamp) {
     return result.trim().replace(/,\s*$/, ''); // Remove trailing comma and space
 }
 
+// Function to parse time strings back to milliseconds for sorting
+function parseTimeStringToMilliseconds(timeString) {
+    if (!timeString || timeString.trim() === '') return 0;
+    
+    let totalMs = 0;
+    const msInSecond = 1000;
+    const msInMinute = msInSecond * 60;
+    const msInHour = msInMinute * 60;
+    const msInDay = msInHour * 24;
+    
+    // Parse patterns like "1d, 3h, 5m, 2s" or just "11s"
+    const dayMatch = timeString.match(/(\d+)d/);
+    const hourMatch = timeString.match(/(\d+)h/);
+    const minuteMatch = timeString.match(/(\d+)m/);
+    const secondMatch = timeString.match(/(\d+)s/);
+    
+    if (dayMatch) totalMs += parseInt(dayMatch[1]) * msInDay;
+    if (hourMatch) totalMs += parseInt(hourMatch[1]) * msInHour;
+    if (minuteMatch) totalMs += parseInt(minuteMatch[1]) * msInMinute;
+    if (secondMatch) totalMs += parseInt(secondMatch[1]) * msInSecond;
+    
+    return totalMs;
+}
+
 window.addEventListener('DOMContentLoaded', () => {
     let sortState = { column: null, order: 'none' };
 
@@ -173,6 +197,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         try {
             let agentcheckins;
             agentcheckins = await ipcRenderer.invoke('get-containers');
+            // log(`[DASHBOARD] agentcheckins : ${agentcheckins}`);
             if (agentcheckins != 0) {
                 const agents = JSON.parse(agentcheckins);
                 let agent_index = 0;
@@ -204,29 +229,27 @@ window.addEventListener('DOMContentLoaded', async () => {
                         } else if (agent.platform === "linux") {
                             platformName = "Linux";
                         } 
-                        thisrow.cells[0].textContent = agent.agentid;
-                        thisrow.cells[1].textContent = agent.container;
-                        thisrow.cells[2].textContent = agent.hostname;
-                        thisrow.cells[3].textContent = agent.username;
-                        thisrow.cells[4].textContent = fileName;
-                        thisrow.cells[5].textContent = agent.PID;
-                        thisrow.cells[6].textContent = agent.IP;
-                        thisrow.cells[7].textContent = agent.arch;
-                        thisrow.cells[8].textContent = platformName; // Set formatted platform name
-                        thisrow.cells[9].textContent = agent.mode;
-                        thisrow.cells[10].textContent = timeDifference(agent.checkin);
-                        thisrow.replaceWith(thisrow.cloneNode(true)); // Remove previous listeners
-                        let table = document.getElementById('containerTable').getElementsByTagName('tbody')[0];
-                        for (let row of table.rows) {
-                            if (row.cells[0].textContent == agent.agentid) {
-                                thisrow = row;
-                                break;
-                            }
+                        // Update cell content only if it has changed
+                        if (thisrow.cells[0].textContent !== agent.agentid) thisrow.cells[0].textContent = agent.agentid;
+                        if (thisrow.cells[1].textContent !== agent.container) thisrow.cells[1].textContent = agent.container;
+                        if (thisrow.cells[2].textContent !== agent.hostname) thisrow.cells[2].textContent = agent.hostname;
+                        if (thisrow.cells[3].textContent !== agent.username) thisrow.cells[3].textContent = agent.username;
+                        if (thisrow.cells[4].textContent !== fileName) thisrow.cells[4].textContent = fileName;
+                        if (thisrow.cells[5].textContent !== agent.PID) thisrow.cells[5].textContent = agent.PID;
+                        if (thisrow.cells[6].textContent !== agent.IP) thisrow.cells[6].textContent = agent.IP;
+                        if (thisrow.cells[7].textContent !== agent.arch) thisrow.cells[7].textContent = agent.arch;
+                        if (thisrow.cells[8].textContent !== platformName) thisrow.cells[8].textContent = platformName;
+                        if (thisrow.cells[9].textContent !== agent.mode) thisrow.cells[9].textContent = agent.mode;
+                        if (thisrow.cells[10].textContent !== timeDifference(agent.checkin)) thisrow.cells[10].textContent = timeDifference(agent.checkin);
+                        
+                        // Only add click listener if this is a new row or if listener was removed
+                        if (isnewrow || !thisrow.hasAttribute('data-click-listener')) {
+                            thisrow.addEventListener('click', () => {
+                                console.log("Row clicked!");
+                                ipcRenderer.send('open-container-window', agent.agentid);
+                            });
+                            thisrow.setAttribute('data-click-listener', 'true');
                         }
-                        thisrow.addEventListener('click', () => {
-                            console.log("Row clicked!"); // Debugging: Check if it logs multiple times
-                            ipcRenderer.send('open-container-window', agent.agentid);
-                        }, { once: true }); // Ensures it only triggers once per element
                     }
                 });
                 updateTableSort();
@@ -287,7 +310,15 @@ window.addEventListener('DOMContentLoaded', async () => {
             rows.sort((a, b) => {
                 const aText = a.querySelector(`td:nth-child(${getColumnIndex(sortState.column)})`).textContent.trim();
                 const bText = b.querySelector(`td:nth-child(${getColumnIndex(sortState.column)})`).textContent.trim();
-                return sortState.order === 'asc' ? aText.localeCompare(bText) : bText.localeCompare(aText);
+                
+                // Special handling for checkin column (time sorting)
+                if (sortState.column === 'checkin') {
+                    const aTime = parseTimeStringToMilliseconds(aText);
+                    const bTime = parseTimeStringToMilliseconds(bText);
+                    return sortState.order === 'asc' ? aTime - bTime : bTime - aTime;
+                } else {
+                    return sortState.order === 'asc' ? aText.localeCompare(bText) : bText.localeCompare(aText);
+                }
             });
         }
 

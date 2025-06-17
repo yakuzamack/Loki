@@ -31,7 +31,7 @@ const commands = [
     'mv', 'sleep', 'cp', 'load',
     'upload', 'download', 'scexec', 'scan',
     'exit', 'assembly', 'help', 'dns','cd',
-    'bof'
+    'bof', 'link', 'unlink'
 ];
 
 global.commandHistory = [];
@@ -86,10 +86,6 @@ const commandDetails = [
     { name: "download", help: "Download a file from remote agent box to local operator box /\r\n\tdownload [remote_path]\r\n\tdownload /agent/src/file\r\n\t- Get from View > Downloads\r\n" },
     { name: "link", help: "Peer-to-peer connect to a Loki TCP agent\r\n\tlink <hostname> <port>\r\n\tlink localhost 3000\r\n" },
     { name: "unlink", help: "Disconnect from a Loki TCP agent\r\n\tunlink <hostname>\r\n\tunlink localhost\r\n" },
-    //{ name: "socks", help: "socks <url> \r\n" +
-    //    "        - Connect to a SOCKS5 server.\r\n" +
-    //    "    Examples:\r\n" +
-    //    "        socks xyz.cloudfront.net:443/ws/agent/09f21e3b6e247b8a6a6ee2472f5\r\n" },
     { name: "scan", help: "scan <host> [-p<ports>] \r\n" +
         "        - The target host or CIDR range to scan.\r\n" +
         "        - Options:\r\n" +
@@ -201,6 +197,7 @@ class Task {
         this.uploadChannel = 'u-' + Math.random().toString(36).substring(2, 14);
         this.command = command;
         this.taskid = Math.random().toString(36).substring(2, 14);
+        this.status = 'starting';
     }
 }
 
@@ -442,26 +439,59 @@ async function printToConsole(message, logToFileFlag = true) {
     }
 }
 
-function loadPreviousLogs() {
+function loadPreviousLogs(customHistoryLength = null) {
     try {
         let agent_log_name = `${pid_log}-${user_log}-${agentid_log}.log`;
         const logFile = path.join(directories.logDir, agent_log_name);
         log(`logfile : ${logFile}`);
 
         if (fs.existsSync(logFile)) {
-            log(`Loading previous logs from ${logFile}`);
-            const logs = fs.readFileSync(logFile, 'utf8');
-            logs.split('\n').forEach(line => {
-                let cleanedLine = line.replace(/^\[.*?\]\s*\[.*?\]\s*/, '').trim();
-                if (cleanedLine) {
-                    printToConsole(cleanedLine, false);
-                }
-            });
+            if (customHistoryLength !== null) {
+                // Use provided history length (for immediate reload)
+                loadLogsWithLength(logFile, customHistoryLength);
+            } else {
+                // Get history length setting (default to 100)
+                ipcRenderer.invoke('get-customize-settings').then(settings => {
+                    const historyLength = settings?.historyLength || 100;
+                    loadLogsWithLength(logFile, historyLength);
+                }).catch(error => {
+                    log(`Error getting history length setting, using default: ${error}`);
+                    loadLogsWithLength(logFile, 100);
+                });
+            }
         } else {
             log(`No existing log file found for ${logFile}`);
         }
     } catch (error) {
         log(`Error loading previous logs: ${error.message}\n${error.stack}`);
+    }
+}
+
+function loadLogsWithLength(logFile, historyLength) {
+    try {
+        const logs = fs.readFileSync(logFile, 'utf8');
+        const allLines = logs.split('\n');
+        const nonEmptyLines = allLines.filter(line => line.trim().length > 0);
+        
+        let linesToLoad;
+        if (historyLength === -1) {
+            // Load all lines (infinite)
+            linesToLoad = nonEmptyLines;
+            log(`Loading all ${nonEmptyLines.length} lines from ${logFile}`);
+        } else {
+            // Load last N lines
+            linesToLoad = nonEmptyLines.slice(-historyLength);
+            log(`Loading last ${linesToLoad.length} of ${nonEmptyLines.length} lines from ${logFile}`);
+        }
+        
+        linesToLoad.forEach(line => {
+            let cleanedLine = line.replace(/^\[.*?\]\s*\[.*?\]\s*/, '').trim();
+            if (cleanedLine) {
+                printToConsole(cleanedLine, false);
+            }
+        });
+    } catch (error) {
+        log(`Error in loadLogsWithLength: ${error.message}`);
     }
 }
 
@@ -539,16 +569,37 @@ window.addEventListener('DOMContentLoaded', async () => {
             containerName = agent_object.container;
             containerKey = agent_object.aes;
             containerBlob = agent_object.blobs;
-            //agent = JSON.parse(agent_object);
             global.agent = agent_object;
 
-            document.title = `${agent_object.agentid.toUpperCase()} | ${agent_object.hostname.toUpperCase()} | ${agent_object.username.toUpperCase()} | ${agent_object.IP}`;
+            document.title = "Loki Agent";
+
+            // Immediately populate the agent table with the received data
+            populateAgentTable(agent_object);
+            
+            // Enable input immediately since we have agent data
+            global.inputload = true;
+            window_agentid = agent_object.agentid;
+            
+            // Set up logging variables
+            agentid_log = agent_object.agentid || '';
+            user_log = agent_object.username || '';
+            pid_log = agent_object.PID || '';
+            
+            // Load command history
+            if (global.historyload === false && agent_object.hostname) {
+                log(`Loading previous command history for ${agent_object.hostname}`);
+                global.historyload = true;
+                loadCommandHistory(agent_object.hostname);
+                loadPreviousLogs();
+            }
 
             const input = document.getElementById('consoleInput');
             input.focus();
             input.selectionStart = input.selectionEnd = input.value.length;
+            
+            log(`agent.js | container-data | Successfully initialized agent window for ${agent_object.agentid}`);
         } catch (error) {
-            log(error);
+            log(`container-data error: ${error} ${error.stack}`);
         }
     });
 
@@ -562,6 +613,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     ipcRenderer.on('command-result', (event, result) => {
         log(`[AGENT][IPC] command-result : ${result}`);
+        log(`[AGENT][IPC] command-result : ${JSON.stringify(result)}`);
         printToConsole(result);
     });
 
@@ -611,6 +663,16 @@ window.addEventListener('DOMContentLoaded', async () => {
             ipcRenderer.send('cut');
             event.preventDefault();
         }
+        // Ctrl++ for zoom in
+        if (event.ctrlKey && (event.key === '+' || event.key === '=')) {
+          event.preventDefault();
+          adjustZoom(0.1);
+        }
+        // Ctrl+- for zoom out
+        if (event.ctrlKey && event.key === '-') {
+          event.preventDefault();
+          adjustZoom(-0.1);
+        }
     });
 
     // Send message to main process to add test command menu item
@@ -620,50 +682,116 @@ window.addEventListener('DOMContentLoaded', async () => {
     ipcRenderer.on('execute-test-command', () => {
         executeCommandTests();
     });
+
+    // Listen for history reload from settings window
+    ipcRenderer.on('reload-history', (event, historyLength) => {
+        log(`=== RECEIVED RELOAD-HISTORY IPC ===`);
+        log(`New history length: ${historyLength}`);
+        
+        // Clear the console and reload with new history length
+        clearConsole();
+        loadPreviousLogs(historyLength);
+    });
 });
+
+function populateAgentTable(agentData) {
+    try {
+        const agentDataRow = document.getElementById('agentDataRow');
+        if (!agentDataRow) {
+            log('populateAgentTable: agentDataRow element not found');
+            return;
+        }
+        
+        if (!agentData) {
+            log('populateAgentTable: No agent data provided');
+            return;
+        }
+
+        log(`populateAgentTable: Populating table with agent data:`, {
+            agentid: agentData.agentid,
+            hostname: agentData.hostname,
+            username: agentData.username,
+            platform: agentData.platform
+        });
+
+        // Determine platform name
+        let platformName = agentData.platform || 'Unknown';
+        if (agentData.platform === "darwin") {
+            platformName = "macOS";
+        } else if (agentData.platform === "win32") {
+            platformName = "Windows";
+        } else if (agentData.platform === "linux") {
+            platformName = "Linux";
+        }
+
+        // Process filename from full path
+        let fileName = agentData.Process || '';
+        if (fileName) {
+            fileName = fileName.trim();
+            if (fileName.includes("\\") && !fileName.includes("/")) {
+                fileName = path.win32.basename(fileName);
+            } else if (fileName.includes("/") && !fileName.includes("\\")) {
+                fileName = path.posix.basename(fileName);
+            } else {
+                fileName = fileName.split(/[/\\]/).pop();
+            }
+        }
+
+        // Update table cells with defensive checks
+        if (agentDataRow.cells.length >= 9) {
+            agentDataRow.cells[0].textContent = agentData.agentid || '-';
+            agentDataRow.cells[1].textContent = agentData.hostname || '-';
+            agentDataRow.cells[2].textContent = agentData.username || '-';
+            agentDataRow.cells[3].textContent = fileName || '-';
+            agentDataRow.cells[4].textContent = agentData.PID || '-';
+            agentDataRow.cells[5].textContent = agentData.IP || '-';
+            agentDataRow.cells[6].textContent = agentData.arch || '-';
+            agentDataRow.cells[7].textContent = platformName || '-';
+            agentDataRow.cells[8].textContent = agentData.checkin ? timeDifference(agentData.checkin) : 'Just connected';
+        } else {
+            log(`populateAgentTable: Table row doesn't have enough cells: ${agentDataRow.cells.length}`);
+        }
+
+        // Set logging variables
+        agentid_log = agentData.agentid || '';
+        user_log = agentData.username || '';
+        pid_log = agentData.PID || '';
+
+        log(`populateAgentTable: Successfully populated table for agent ${agentData.agentid}`);
+    } catch (error) {
+        log(`populateAgentTable error: ${error} ${error.stack}`);
+    }
+}
 
 async function updateTable() {
     try {
-        const agentTable = document.getElementById('agentTable').getElementsByTagName('tbody')[0];
+        if (!global.agent || !global.agent.agentid) {
+            log('updateTable: No agent data available yet');
+            return;
+        }
+
         let agentid = global.agent.agentid;
         window_agentid = agentid;
-        let agentcheckin = await ipcRenderer.invoke('get-agent-checkin', agentid);
-
-        if (agentcheckin) {
-            //log(`agentcheckin : ${agentcheckin}`);
-            agentcheckin = JSON.parse(agentcheckin);
-
-            const filePath = agentcheckin.Process.trim();
-            let fileName;
-            if (filePath.includes("\\") && !filePath.includes("/")) {
-                fileName = path.win32.basename(filePath);
-            } else if (filePath.includes("/") && !filePath.includes("\\")) {
-                fileName = path.posix.basename(filePath);
-            } else {
-                fileName = filePath.split(/[/\\]/).pop();
-            }
-            for (let row of agentTable.rows) {
-                let platformName = agentcheckin.platform;
-                if (global.agent.platform === "darwin") {
-                    platformName = "macOS";
-                } else if (global.agent.platform === "win32") {
-                    platformName = "Windows";
-                } else if (global.agent.platform === "linux") {
-                    platformName = "Linux";
+        
+        // Try to get fresh checkin data, but don't block if it fails
+        try {
+            let agentcheckin = await ipcRenderer.invoke('get-agent-checkin', agentid);
+            if (agentcheckin) {
+                agentcheckin = JSON.parse(agentcheckin);
+                populateAgentTable(agentcheckin);
+                
+                if (global.historyload === false) {
+                    log(`Loading previous command history`);
+                    global.historyload = true;
+                    loadCommandHistory(global.agent.hostname);
+                    loadPreviousLogs();
                 }
-                row.cells[0].textContent = agentcheckin.agentid;
-                row.cells[1].textContent = agentcheckin.hostname;
-                row.cells[2].textContent = agentcheckin.username;
-                row.cells[3].textContent = fileName;
-                row.cells[4].textContent = agentcheckin.PID;
-                row.cells[5].textContent = agentcheckin.IP;
-                row.cells[6].textContent = agentcheckin.arch;
-                row.cells[7].textContent = platformName;
-                row.cells[8].textContent = timeDifference(agentcheckin.checkin);
-                agentid_log = agentcheckin.agentid;
-                user_log = agentcheckin.username;
-                pid_log = agentcheckin.PID;
+                global.inputload = true;
             }
+        } catch (checkinError) {
+            log(`updateTable: Failed to get checkin data, using existing agent data: ${checkinError}`);
+            // Fallback to using the original agent data
+            populateAgentTable(global.agent);
             if (global.historyload === false) {
                 log(`Loading previous command history`);
                 global.historyload = true;
@@ -673,7 +801,7 @@ async function updateTable() {
             global.inputload = true;
         }
     } catch (error) {
-        log(`${error} ${error.stack}`);
+        log(`updateTable error: ${error} ${error.stack}`);
     }
 }
 setInterval(updateTable, 1000);
@@ -711,10 +839,26 @@ async function format_ls_output(filesAndFolders) {
 }
 
 ipcRenderer.on('command-output', async (event, command_response) => {
+    log(`[AGENT][IPC] command-output : ${command_response.output}`);
+    log(`[AGENT][IPC] command        : ${command_response.command}`);
+    log(`[AGENT][IPC] taskid         : ${command_response.taskid}`);
+    log(`[AGENT][IPC] status         : ${command_response.status}`);
     try {
         if (command_response.command.startsWith('ls')) {
-            let resultBuffer = await format_ls_output(command_response.output);
-            printToConsole(resultBuffer);
+            // Check if output is JSON before parsing
+            let isJson = false;
+            try {
+                JSON.parse(command_response.output);
+                isJson = true;
+            } catch (e) {
+                isJson = false;
+            }
+            if (isJson) {
+                let resultBuffer = await format_ls_output(command_response.output);
+                printToConsole(resultBuffer);
+            } else {
+                printToConsole(command_response.output);
+            }
         } else if (command_response.command.startsWith('bof ')) {
             if (command_response.command.startsWith('bof ')) {
                 printToConsole(command_response.output.replace(/</g, '&lt;').replace(/>/g, '&gt;'));
@@ -725,7 +869,7 @@ ipcRenderer.on('command-output', async (event, command_response) => {
             printToConsole(command_response.output);
         }
     } catch (error) {
-        log(`Error in ipcRender(delete-old-container): ${error.message}\r\n${error.stack}`);
+        log(`[!][AGENT][IPC][command-output] Error: ${error.message}\r\n${error.stack}`);
     }
 });
 
@@ -735,7 +879,7 @@ ipcRenderer.on('window-closing', async () => {
         log(`agentid: ${window_agentid}`);
         ipcRenderer.send('force-close', window_agentid);
     } catch (error) {
-        log(`Error in ipcRender(delete-old-container): ${error.message}\r\n${error.stack}`);
+        log(`[!][AGENT][IPC][window-closing] Error: ${error.message}\r\n${error.stack}`);
     }
 });
 
@@ -779,20 +923,18 @@ function moveCursorByWord(input, direction) {
 }
 
 const testCommands = [
-    { command: "sleep 1 0"},
     { command: "sleep 0 0"},
-    { command: "cd C:\\TEMP"},
     { command: "pwd"},
+    { command: "cd C:\\TEMP"},
     { command: "ls \"C:\\Program Files (x86)\\Microsoft\""},
     { command: "ls C:\\\\Program\\ Files\\ (x86)\\\\Microsoft"},
     { command: "ls 'C:\\Program Files (x86)\\Microsoft'"},
     { command: "ls 'C:/Program Files (x86)/Microsoft'"},
     { command: "dns reverse 1.1.1.1"},
     { command: "dns lookup google.com"},
-    { command: "bof /Users/bobby/CS/SA/dir/dir.x64.o go z \"C:\\Users\\user\\Desktop\""},
+    { command: "bof /dev/dir.x64.o go z \"C:\\TEMP\\"},
     { command: "spawn powershell.exe -c \"echo testing > C:\\TEMP\\testing.txt\""},
     { command: "ls"},
-    { command: "pwd"},
     { command: "cat testing.txt"},
     { command: "mv testing.txt testing2.txt"},
     { command: "ls .\\"},
@@ -800,10 +942,10 @@ const testCommands = [
     { command: "ls ./"},
     { command: "download testing3.txt"},
     { command: "cd"},
-    { command: "upload /Users/bobby/Loki/downloads/testing3.txt ./"},
+    { command: "upload /TEMP/testing3.txt ./"},
     { command: "scan 127.0.0.1 -p22,80,445,8080"},
-    { command: "assembly /Users/bobby/Rubeus_v4.0_InspirationOpinion.exe klist"},
-    { command: "scexec /Users/bobby/popcalc.bin"}
+    { command: "assembly /dev/Rubeus_v4.0_InspirationOpinion.exe klist"},
+    { command: "scexec /dev/popcalc.bin"}
 ];
     
 async function executeCommandTests() {

