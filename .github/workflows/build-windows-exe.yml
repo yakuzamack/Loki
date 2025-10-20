@@ -1,0 +1,84 @@
+name: Build Windows EXE
+
+on:
+  # Trigger manually from GitHub Actions tab
+  workflow_dispatch:
+    inputs:
+      payload_type:
+        description: 'Payload to build'
+        required: true
+        default: 'loki_injector'
+        type: choice
+        options:
+          - loki_injector
+          - all
+  
+  # Or trigger on push to specific paths
+  push:
+    paths:
+      - 'payloads/output/windows/loki_injector.py'
+      - '.github/workflows/build-windows-exe.yml'
+
+jobs:
+  build-windows-exe:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install PyInstaller
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+      
+      - name: Build loki_injector.exe
+        run: |
+          cd payloads/output/windows
+          pyinstaller --onefile --console --name loki_injector --clean loki_injector.py
+        shell: cmd
+      
+      - name: Verify build
+        run: |
+          cd payloads/output/windows/dist
+          dir loki_injector.exe
+          echo "File size:"
+          powershell -Command "'{0:N2} MB' -f ((Get-Item loki_injector.exe).Length / 1MB)"
+        shell: cmd
+      
+      - name: Upload Windows EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: loki-injector-windows-exe
+          path: payloads/output/windows/dist/loki_injector.exe
+          retention-days: 30
+      
+      - name: Create Release (if tagged)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: payloads/output/windows/dist/loki_injector.exe
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Build Summary
+        run: |
+          echo "### ✅ Windows EXE Build Complete!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Artifact:** loki-injector-windows-exe" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📦 Download from the Artifacts section below" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployment:**" >> $GITHUB_STEP_SUMMARY
+          echo "1. Download loki_injector.exe" >> $GITHUB_STEP_SUMMARY
+          echo "2. Transfer to Windows target" >> $GITHUB_STEP_SUMMARY
+          echo "3. Run as Administrator" >> $GITHUB_STEP_SUMMARY
+        shell: bash
